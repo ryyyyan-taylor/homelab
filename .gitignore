@@ -1,0 +1,16 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Ansible
+*.retry
+.ansible/
+
+# Age private keys — never commit
+*.age
+
+# OS
+.DS_Store
+Thumbs.db
