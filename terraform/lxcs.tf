@@ -23,6 +23,16 @@ resource "proxmox_virtual_environment_container" "corekeeper" {
 
   initialization {
     hostname = "corekeeper"
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.151/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
   }
 
   disk {
@@ -42,14 +52,14 @@ resource "proxmox_virtual_environment_container" "corekeeper" {
   }
 
   operating_system {
-    template_file_id = "local:vztmpl/placeholder" # ignored; container already exists
+    template_file_id = "local:vztmpl/placeholder"
     type             = "debian"
   }
 
   lifecycle {
     ignore_changes = [
-      started,          # start/stop on demand; not managed by terraform
-      operating_system, # template_file_id not stored in proxmox after creation
+      started,
+      operating_system,
     ]
   }
 }
@@ -79,6 +89,13 @@ resource "proxmox_virtual_environment_container" "minecraft" {
 
   initialization {
     hostname = "minecraft"
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.152/24"
+        gateway = "10.0.1.1"
+      }
+    }
   }
 
   disk {
@@ -132,6 +149,16 @@ resource "proxmox_virtual_environment_container" "terraria" {
 
   initialization {
     hostname = "terraria"
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.153/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
   }
 
   disk {
@@ -185,6 +212,16 @@ resource "proxmox_virtual_environment_container" "pihole" {
 
   initialization {
     hostname = "pi-hole"
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.160/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
   }
 
   disk {
@@ -241,7 +278,17 @@ resource "proxmox_virtual_environment_container" "network" {
   }
 
   initialization {
-    hostname = "network" # rename from "admin"; applied intentionally
+    hostname = "network"
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.161/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
   }
 
   disk {
