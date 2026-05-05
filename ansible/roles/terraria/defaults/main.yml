@@ -1,0 +1,20 @@
+---
+# LGSM Steam credentials (used by steamcmd for updates)
+# Sensitive vars — defined in group_vars/game_servers/secrets.sops.yaml
+# lgsm_steam_user:
+# lgsm_steam_pass:
+
+# Server settings (terrariaserver.txt)
+terraria_port: 7777
+terraria_motd: "The Boiz R Back"
+terraria_world: "/home/terrariaserver/.local/share/Terraria/Worlds/chug_n_beans.wld"
+terraria_worldpath: "/home/terrariaserver/.local/share/Terraria/Worlds/"
+terraria_worldname: "TheBoizRBack"
+terraria_autocreate: 3
+terraria_difficulty: 2
+terraria_secure: 1
+terraria_language: "en-US"
+terraria_priority: 1
+
+# Sensitive vars — defined in group_vars/game_servers/secrets.sops.yaml
+# terraria_password:

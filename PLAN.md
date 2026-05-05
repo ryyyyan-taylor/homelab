@@ -264,33 +264,19 @@ Repurpose CT 161 (admin → network): strip it back, install Tailscale, configur
 - [x] Groups: `game_servers` (151–153), `infrastructure` (160–161)
 - [x] Inventory resolves all 5 LXCs with correct `ansible_host` IPs
 
-**Next: SSH bootstrap (one-time, before Ansible roles can run)**
-
-SSH key auth is not yet set up on the LXCs. Bootstrap via `pct exec` on the Proxmox host (`root@10.0.1.135`):
-
-```bash
-PUBKEY="$(cat ~/.ssh/id_ed25519.pub)"  # run on ryan-desktop first to get key
-
-# Then on root@10.0.1.135:
-for ct in 160 161; do
-    pct exec $ct -- mkdir -p /root/.ssh
-    pct exec $ct -- bash -c "echo '$PUBKEY' >> /root/.ssh/authorized_keys"
-    pct exec $ct -- chmod 700 /root/.ssh
-    pct exec $ct -- chmod 600 /root/.ssh/authorized_keys
-done
-# Game servers (151–153): start each with `pct start <id>`, run same loop, then stop again
-```
-
-Verify: `ansible infrastructure -i inventory/ -m ping` should return green.
+**SSH bootstrap — done:**
+- [x] ed25519 key generated on ryan-desktop
+- [x] Key pushed to all 5 LXCs via `pct exec` on Proxmox host
+- [x] `ansible infrastructure -m ping` green; game servers verified and stopped
 
 **Next: Ansible roles (after SSH bootstrap)**
-- [ ] `base` role: node_exporter + Promtail on all LXCs (idle until Phase 2 scrapes them)
-- [ ] `pihole` role: describe current pi-hole state, idempotent
-- [ ] `minecraft` role: describe current minecraft state, idempotent
-- [ ] `terraria` role: describe current terraria state, idempotent
-- [ ] `corekeeper` role: describe current corekeeper state, idempotent
-- [ ] `network` role: describe current Tailscale subnet router state, idempotent
-- [ ] Playbook `adopt-lxcs.yml` wiring roles to groups, `--check` run is a no-op
+- [x] `base` role: node_exporter + Promtail on all LXCs (idle until Phase 2 scrapes them)
+- [x] `pihole` role: describe current pi-hole state, idempotent
+- [x] `minecraft` role: describe current minecraft state, idempotent
+- [x] `terraria` role: describe current terraria state, idempotent
+- [x] `corekeeper` role: describe current corekeeper state, idempotent
+- [x] `network` role: describe current Tailscale subnet router state, idempotent
+- [x] Playbook `adopt-lxcs.yml` wiring roles to groups, `--check` run is a no-op
 
 Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need services that don't exist yet.
 

@@ -1,0 +1,14 @@
+{
+    "adminList": [
+{% for admin in ck_admins %}
+        {
+            "index": {{ admin.index }},
+            "privileges": {{ admin.privileges }},
+            "name": "{{ admin.name }}",
+            "steamId": {{ admin.steamId }},
+            "crossPlatformId": {{ admin.crossPlatformId }}
+        }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+    ]
+}

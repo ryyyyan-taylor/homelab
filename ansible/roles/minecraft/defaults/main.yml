@@ -1,0 +1,28 @@
+---
+# LGSM instance settings
+mc_java_ram: "8192M"
+
+# Server settings (server.properties)
+mc_motd: "Shidma"
+mc_difficulty: easy
+mc_gamemode: survival
+mc_max_players: 20
+mc_online_mode: true
+mc_whitelist: true
+mc_enforce_whitelist: false
+mc_pvp: true
+mc_port: 25565
+mc_spawn_protection: 16
+mc_view_distance: 24
+mc_simulation_distance: 18
+mc_enable_command_block: true
+mc_op_permission_level: 4
+mc_level_name: seed
+mc_network_compression_threshold: 256
+mc_pause_when_empty_seconds: 60
+mc_enable_rcon: true
+mc_rcon_port: 25575
+
+# Sensitive vars — defined in group_vars/game_servers/secrets.sops.yaml
+# mc_rcon_password:
+# mc_management_server_secret:

@@ -1,0 +1,20 @@
+---
+- name: Verify tailscale is installed
+  stat:
+    path: /usr/sbin/tailscaled
+  register: _tailscaled_binary
+  failed_when: not _tailscaled_binary.stat.exists
+
+- name: Ensure tailscaled is enabled and running
+  systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+# tailscale set is a no-op if routes are already configured; authentication
+# must be done manually once via `tailscale up --advertise-routes=...`
+- name: Ensure subnet routes are advertised
+  command: >
+    tailscale set
+    --advertise-routes={{ tailscale_advertise_routes | join(',') }}
+  changed_when: false

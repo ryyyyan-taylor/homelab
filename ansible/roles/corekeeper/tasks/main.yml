@@ -1,0 +1,23 @@
+---
+- name: Verify LGSM is installed
+  stat:
+    path: /home/ckserver/linuxgsm.sh
+  register: _lgsm
+  failed_when: not _lgsm.stat.exists
+
+- name: Template ServerConfig.json
+  template:
+    src: ServerConfig.json.j2
+    dest: /home/ckserver/serverfiles/gamedata/ckserver/ServerConfig.json
+    owner: ckserver
+    group: ckserver
+    mode: "0600"
+  no_log: true
+
+- name: Template Admins.json
+  template:
+    src: Admins.json.j2
+    dest: /home/ckserver/serverfiles/gamedata/ckserver/Admins.json
+    owner: ckserver
+    group: ckserver
+    mode: "0644"

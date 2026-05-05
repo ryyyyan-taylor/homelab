@@ -1,0 +1,12 @@
+---
+- name: Verify pi-hole is installed
+  stat:
+    path: /usr/local/bin/pihole
+  register: _pihole_binary
+  failed_when: not _pihole_binary.stat.exists
+
+- name: Ensure pihole-FTL is enabled and running
+  systemd:
+    name: pihole-FTL
+    enabled: true
+    state: started

@@ -1,0 +1,29 @@
+---
+- name: Verify java is installed
+  command: java -version
+  changed_when: false
+  register: _java_check
+  failed_when: _java_check.rc != 0
+
+- name: Verify LGSM is installed
+  stat:
+    path: /home/mcserver/linuxgsm.sh
+  register: _lgsm
+  failed_when: not _lgsm.stat.exists
+
+- name: Template LGSM instance config
+  template:
+    src: mcserver.cfg.j2
+    dest: /home/mcserver/lgsm/config-lgsm/mcserver/mcserver.cfg
+    owner: mcserver
+    group: mcserver
+    mode: "0600"
+
+- name: Template server.properties
+  template:
+    src: server.properties.j2
+    dest: /home/mcserver/serverfiles/server.properties
+    owner: mcserver
+    group: mcserver
+    mode: "0600"
+  no_log: true

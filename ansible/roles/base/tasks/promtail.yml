@@ -1,0 +1,87 @@
+---
+- name: Check installed promtail version
+  command: /usr/local/bin/promtail --version
+  register: _pt_version
+  changed_when: false
+  failed_when: false
+
+- name: Install promtail
+  when: promtail_version not in (_pt_version.stdout | default(''))
+  block:
+    - name: Install unzip
+      apt:
+        name: unzip
+        state: present
+        update_cache: false
+      check_mode: false
+
+    - name: Download promtail zip
+      get_url:
+        url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-amd64.zip"
+        dest: "/tmp/promtail-{{ promtail_version }}.zip"
+        mode: "0644"
+      check_mode: false
+
+    - name: Extract promtail
+      unarchive:
+        src: "/tmp/promtail-{{ promtail_version }}.zip"
+        dest: /tmp/
+        remote_src: true
+      check_mode: false
+
+    - name: Install promtail binary
+      copy:
+        src: /tmp/promtail-linux-amd64
+        dest: /usr/local/bin/promtail
+        mode: "0755"
+        remote_src: true
+      notify: Restart promtail
+
+- name: Create promtail system user
+  user:
+    name: promtail
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+    groups: adm
+    append: true
+
+- name: Create promtail config directory
+  file:
+    path: /etc/promtail
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create promtail positions directory
+  file:
+    path: /var/lib/promtail
+    state: directory
+    owner: promtail
+    group: promtail
+    mode: "0755"
+
+- name: Install promtail config
+  template:
+    src: promtail-config.yml.j2
+    dest: /etc/promtail/config.yml
+    owner: root
+    group: promtail
+    mode: "0640"
+  notify: Restart promtail
+
+- name: Install promtail systemd unit
+  template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    mode: "0644"
+  notify: Restart promtail
+
+- name: Enable and start promtail
+  systemd:
+    name: promtail
+    enabled: true
+    state: started
+    daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"

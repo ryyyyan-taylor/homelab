@@ -1,0 +1,12 @@
+---
+- name: Restart node_exporter
+  systemd:
+    name: node_exporter
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Restart promtail
+  systemd:
+    name: promtail
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"

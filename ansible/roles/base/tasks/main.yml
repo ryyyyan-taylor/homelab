@@ -1,0 +1,3 @@
+---
+- import_tasks: node_exporter.yml
+- import_tasks: promtail.yml

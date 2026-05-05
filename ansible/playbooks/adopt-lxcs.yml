@@ -1,0 +1,48 @@
+---
+- name: Adopt all LXCs
+  hosts: all
+  remote_user: root
+  roles:
+    - base
+
+- name: Configure pi-hole
+  hosts: pi-hole
+  remote_user: root
+  roles:
+    - pihole
+
+- name: Configure network LXC
+  hosts: network
+  remote_user: root
+  roles:
+    - network
+
+- name: Configure Minecraft server
+  hosts: minecraft
+  remote_user: root
+  pre_tasks:
+    - name: Load game server secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+  roles:
+    - minecraft
+
+- name: Configure Terraria server
+  hosts: terraria
+  remote_user: root
+  pre_tasks:
+    - name: Load game server secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+  roles:
+    - terraria
+
+- name: Configure Corekeeper server
+  hosts: corekeeper
+  remote_user: root
+  pre_tasks:
+    - name: Load game server secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+  roles:
+    - corekeeper
