@@ -284,8 +284,27 @@ Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need 
 
 ### Phase 1 — Platform (Talos + GitOps + ingress + TLS)
 - [x] **Prerequisite: 1 TB drive installed** — drive is online as LVM thin pool `hdd` (VG `hdd`, ~980 GB). Talos VMs will be provisioned onto `hdd`; existing LXCs stay on `data`.
-- [ ] Packer builds a Talos boot image (or use upstream factory).
-- [ ] Terraform provisions **3 Talos VMs**: 1 control plane (4 GB / 2 vCPU / 40 GB) + 2 workers (6 GB / 4 vCPU / 60 GB each). Memory ballooning enabled on all three.
+- [x] Talos metal-amd64 ISO uploaded to Proxmox local storage (`local:iso/talos-metal-amd64.iso`).
+- [x] Terraform provisions **3 Talos VMs** (`terraform/talos-vms.tf`): talos-cp (VM 200, 2 vCPU / 4 GB / 40 GB) + talos-worker-1 (VM 201, 4 vCPU / 6 GB / 60 GB) + talos-worker-2 (VM 202, 4 vCPU / 6 GB / 60 GB). All on `hdd`, ballooning enabled, `on_boot = true`.
+
+**Next: Talos bootstrap**
+
+Planned IPs (set via machine config, not Proxmox):
+- `talos-cp`:       `10.0.1.200`
+- `talos-worker-1`: `10.0.1.201`
+- `talos-worker-2`: `10.0.1.202`
+
+Steps:
+1. Verify `talosctl` is installed on ryan-desktop (`talosctl version --client`)
+2. Start all 3 VMs in Proxmox — they boot from ISO into maintenance mode and get DHCP IPs
+3. Find their temporary DHCP IPs (check router or Proxmox console) — needed to apply initial config
+4. Generate machine configs: `talosctl gen config talos-homelab https://10.0.1.200:6443 --output kubernetes/talos/`
+5. Patch configs with static IPs, node roles, install disk (`/dev/vda`) — commit patched configs to `kubernetes/talos/`
+6. Apply configs: `talosctl apply-config --insecure --nodes <dhcp-ip> --file <cfg>` for each node
+7. Bootstrap: `talosctl bootstrap --nodes 10.0.1.200`
+8. Fetch kubeconfig: `talosctl kubeconfig --nodes 10.0.1.200`
+9. Verify: `kubectl get nodes` shows 3 nodes Ready
+
 - [ ] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
 - [ ] KSOPS plugin configured on Argo's repo-server; age key delivered as a cluster secret.
 - [ ] Traefik + cert-manager (with Cloudflare DNS-01 issuer) + Authentik installed via Argo CD.

@@ -9,3 +9,9 @@ variable "proxmox_api_token" {
   type        = string
   sensitive   = true
 }
+
+variable "talos_iso_file_id" {
+  description = "Proxmox volume ID of the Talos metal ISO"
+  type        = string
+  default     = "local:iso/talos-metal-amd64.iso"
+}

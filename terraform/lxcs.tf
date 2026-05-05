@@ -100,7 +100,7 @@ resource "proxmox_virtual_environment_container" "minecraft" {
 
   disk {
     datastore_id = "local-lvm"
-    size         = 8
+    size         = 16
   }
 
   network_interface {
