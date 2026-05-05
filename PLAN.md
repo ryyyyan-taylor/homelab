@@ -253,10 +253,44 @@ Each phase is a shippable milestone with a tagged commit and a README section. D
 ### Phase 0.5 — Adopt existing LXCs
 Repurpose CT 161 (admin → network): strip it back, install Tailscale, configure as subnet router. Self-hosted GH Actions runner deferred to Phase 3.
 
-For each remaining LXC (Corekeeper, Minecraft, Terraria, Pi-hole — CT IDs 151–153, 160):
-- [ ] Ansible role describing current state, idempotent (first run = no-op).
-- [ ] `terraform import` so the LXC's lifecycle is owned by the repo.
-- [ ] node_exporter + Promtail agents installed (running idle; cluster Prometheus/Loki will scrape them in Phase 2).
+**Terraform — done:**
+- [x] `bpg/proxmox` provider configured (`terraform/versions.tf`, `providers.tf`, `variables.tf`)
+- [x] All 5 LXCs (151–153, 160, 161) imported into state via `terraform/imports.tf` + `lxcs.tf`
+- [x] CT 161 renamed `admin` → `network` via Terraform
+- [x] `terraform plan` is clean (no changes)
+
+**Ansible — done:**
+- [x] `community.proxmox` dynamic inventory configured (`ansible/inventory/proxmox.yml`)
+- [x] Groups: `game_servers` (151–153), `infrastructure` (160–161)
+- [x] Inventory resolves all 5 LXCs with correct `ansible_host` IPs
+
+**Next: SSH bootstrap (one-time, before Ansible roles can run)**
+
+SSH key auth is not yet set up on the LXCs. Bootstrap via `pct exec` on the Proxmox host (`root@10.0.1.135`):
+
+```bash
+PUBKEY="$(cat ~/.ssh/id_ed25519.pub)"  # run on ryan-desktop first to get key
+
+# Then on root@10.0.1.135:
+for ct in 160 161; do
+    pct exec $ct -- mkdir -p /root/.ssh
+    pct exec $ct -- bash -c "echo '$PUBKEY' >> /root/.ssh/authorized_keys"
+    pct exec $ct -- chmod 700 /root/.ssh
+    pct exec $ct -- chmod 600 /root/.ssh/authorized_keys
+done
+# Game servers (151–153): start each with `pct start <id>`, run same loop, then stop again
+```
+
+Verify: `ansible infrastructure -i inventory/ -m ping` should return green.
+
+**Next: Ansible roles (after SSH bootstrap)**
+- [ ] `base` role: node_exporter + Promtail on all LXCs (idle until Phase 2 scrapes them)
+- [ ] `pihole` role: describe current pi-hole state, idempotent
+- [ ] `minecraft` role: describe current minecraft state, idempotent
+- [ ] `terraria` role: describe current terraria state, idempotent
+- [ ] `corekeeper` role: describe current corekeeper state, idempotent
+- [ ] `network` role: describe current Tailscale subnet router state, idempotent
+- [ ] Playbook `adopt-lxcs.yml` wiring roles to groups, `--check` run is a no-op
 
 Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need services that don't exist yet.
 
