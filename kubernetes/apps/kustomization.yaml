@@ -10,3 +10,4 @@ resources:
   - platform/local-path-provisioner/application.yaml
   - platform/authentik-config/application.yaml
   - platform/authentik/application.yaml
+  - platform/whoami/application.yaml

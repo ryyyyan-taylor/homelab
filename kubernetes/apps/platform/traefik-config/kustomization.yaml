@@ -5,3 +5,4 @@ resources:
   - certificate.yaml
   - tlsstore.yaml
   - dashboard-ingressroute.yaml
+  - authentik-forwardauth-middleware.yaml
