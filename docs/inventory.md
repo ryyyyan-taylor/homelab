@@ -146,6 +146,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | StorageClass | `local-path` (default) |
 | Storage path | `/opt/local-path-provisioner` on each node |
 | Notes | Patched via Kustomize to set `storageclass.kubernetes.io/is-default-class: "true"` |
+| Known gotcha | Talos requires `pod-security.kubernetes.io/enforce: privileged` label on `local-path-storage` namespace — the helper pod uses hostPath volumes which `baseline` policy forbids |
 
 ### Authentik
 
