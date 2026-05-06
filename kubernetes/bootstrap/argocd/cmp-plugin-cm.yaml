@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-plugin
+  namespace: argocd
+data:
+  ksops.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: ksops
+    spec:
+      version: v1.0
+      generate:
+        command:
+          - sh
+          - -c
+          - "kustomize build --enable-alpha-plugins --enable-exec ."
+      discover:
+        find:
+          glob: "./**/ksops.yaml"

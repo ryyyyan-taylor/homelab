@@ -300,8 +300,50 @@ Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need 
 - NIC is `ens18` (not `eth0`) — patches already reflect this
 - Regenerate machine configs: `sops -d kubernetes/talos/secrets.sops.yaml > /tmp/s.yaml && talosctl gen config talos-homelab https://10.0.1.200:6443 --with-secrets /tmp/s.yaml -o kubernetes/talos/ -f && rm /tmp/s.yaml`, then re-apply patches
 
-- [ ] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
-- [ ] KSOPS plugin configured on Argo's repo-server; age key delivered as a cluster secret.
+**Argo CD bootstrap — ready to run:**
+- Bootstrap manifests: `kubernetes/bootstrap/argocd/` (Argo v2.14.2 + KSOPS v4.2.3 CMP sidecar)
+- Root Application: `kubernetes/bootstrap/root-app.yaml` (watches `kubernetes/apps/`, app-of-apps)
+
+**Bootstrap sequence (two manual pre-steps, then Argo takes over):**
+```bash
+# 1. Namespace + age key secret (must exist before argocd-repo-server starts)
+kubectl create namespace argocd
+kubectl create secret generic ksops-age-key \
+  --from-file=keys.txt=$HOME/.config/sops/age/keys.txt \
+  -n argocd
+
+# 2. Install Argo CD with KSOPS CMP sidecar
+kubectl apply -k kubernetes/bootstrap/argocd/
+
+# 3. Wait for repo-server to be ready
+kubectl -n argocd rollout status deploy/argocd-repo-server
+
+# 4. Apply root Application — Argo takes over from here
+kubectl apply -f kubernetes/bootstrap/root-app.yaml
+```
+- If repo is private: add a GitHub deploy token via `argocd repo add` or Argo CD UI before step 4.
+
+**Argo CD bootstrap — done:**
+- [x] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
+- [x] KSOPS v4.2.3 CMP sidecar configured on repo-server; age key delivered as `ksops-age-key` secret.
+- [x] Root Application synced (`kubernetes/apps/`); `root` app shows Synced/Healthy.
+
+**Gotcha — DHCP IP accumulation on Talos nodes (fixed, documented for rebuilds):**
+Talos nodes briefly get DHCP IPs during boot before static config applies. These accumulate in
+Talos's in-memory address tracker and the kubelet bakes the wrong IP into the `kubernetes` service
+endpoint lease. Fix: `machine.kubelet.nodeIP.validSubnets` is now set in all three patches to pin
+the kubelet's node-ip to the static IP. All nodes were rebooted once after the patch to clear
+accumulated addresses. On rebuild, apply configs and reboot all nodes before troubleshooting
+connectivity.
+
+**Next session — start here:**
+- [ ] cert-manager via Argo CD (`kubernetes/apps/platform/cert-manager/`) — install first because
+  Traefik and the wildcard cert depend on it.
+  - Helm chart: `cert-manager` from `https://charts.jetstack.io`, install CRDs.
+  - `ClusterIssuer` for Let's Encrypt DNS-01 via Cloudflare; Cloudflare API token delivered as a
+    SOPS-encrypted secret (decrypted by Argo via KSOPS).
+  - Manual pre-step on fresh cluster: `kubectl create secret generic cloudflare-api-token ...`
+    (or encrypt with SOPS and add a `ksops.yaml` generator so Argo handles it).
 - [ ] Traefik + cert-manager (with Cloudflare DNS-01 issuer) + Authentik installed via Argo CD.
 - [ ] Wildcard cert issued for `*.lab.ryantaylor.tech`.
 - [ ] One trivial app (e.g., `whoami`) reachable at `https://whoami.lab.ryantaylor.tech` behind Authentik.
