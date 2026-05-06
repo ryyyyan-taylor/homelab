@@ -97,6 +97,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 6 | local-path-provisioner | `local-path-storage` | Default StorageClass for PVCs |
 | 7 | authentik-config | `authentik` | SOPS secrets + Authentik IngressRoute |
 | 8 | authentik | `authentik` | SSO provider (Helm) |
+| 9 | whoami | `whoami` | SSO smoke-test app |
 
 ### cert-manager
 
@@ -162,6 +163,19 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Secret keys | `secret-key`, `postgresql-password`, `postgresql-postgres-password` |
 | Secret injection | `global.env` with `valueFrom.secretKeyRef`; postgres subchart uses `postgresql.auth.existingSecret` |
 | IngressRoute | `authentik-config/ingressroute.yaml` — deployed at wave 7 before Helm pods start |
+| Forward auth | Embedded outpost (`authentik Embedded Outpost`) — Go router on port 9000 inside server pod |
+| Known gotcha | Authentik 2026.x changed the Traefik forward-auth path from `/auth/tr` → `/auth/traefik`. Middleware address must end in `/outpost.goauthentik.io/auth/traefik` |
+| Known gotcha | ArgoCD v2.14.x schema doesn't include `terminatingReplicas` (added in k8s 1.36) — add `ignoreDifferences` with `jqPathExpressions: [.status.terminatingReplicas]` on Deployment and StatefulSet |
+
+### whoami (SSO smoke test)
+
+| | |
+|---|---|
+| Namespace | `whoami` |
+| URL | `https://whoami.lab.ryantaylor.tech` |
+| Image | `traefik/whoami:latest` |
+| Purpose | Verifies end-to-end SSO: Traefik → Authentik forward-auth → authenticated response with `X-Authentik-*` headers |
+| Middleware | `authentik-forwardauth` (Traefik namespace, cross-namespace reference) |
 
 ---
 
