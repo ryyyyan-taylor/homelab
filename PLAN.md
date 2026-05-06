@@ -294,6 +294,11 @@ Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need 
 - [x] `talosctl bootstrap` run against control plane
 - [x] Static IPs confirmed: CP `10.0.1.200`, worker-1 `10.0.1.201`, worker-2 `10.0.1.202`
 - [x] `kubectl get nodes` shows 3 nodes Ready (Talos v1.13.0, K8s v1.36.0)
+- [x] kubeconfig merged into `~/.kube/config`; talosconfig at `kubernetes/talos/talosconfig`
+
+**Notes for future rebuilds:**
+- NIC is `ens18` (not `eth0`) — patches already reflect this
+- Regenerate machine configs: `sops -d kubernetes/talos/secrets.sops.yaml > /tmp/s.yaml && talosctl gen config talos-homelab https://10.0.1.200:6443 --with-secrets /tmp/s.yaml -o kubernetes/talos/ -f && rm /tmp/s.yaml`, then re-apply patches
 
 - [ ] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
 - [ ] KSOPS plugin configured on Argo's repo-server; age key delivered as a cluster secret.
