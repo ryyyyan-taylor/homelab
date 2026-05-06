@@ -1,4 +1,5 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Platform Application resources are added here as Phase 1 continues.
-# Each entry is an Argo CD Application CRD pointing at a path under kubernetes/apps/.
+resources:
+  - platform/cert-manager/application.yaml
+  - platform/cert-manager-config/application.yaml
