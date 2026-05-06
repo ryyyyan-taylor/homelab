@@ -68,6 +68,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: authentik
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .status.terminatingReplicas
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .status.terminatingReplicas
   syncPolicy:
     automated:
       prune: true
