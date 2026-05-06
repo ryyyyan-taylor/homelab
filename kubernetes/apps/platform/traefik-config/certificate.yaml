@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: wildcard-lab-tls
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-prod
     kind: ClusterIssuer
   commonName: "*.lab.ryantaylor.tech"
   dnsNames:
