@@ -336,17 +336,43 @@ the kubelet's node-ip to the static IP. All nodes were rebooted once after the p
 accumulated addresses. On rebuild, apply configs and reboot all nodes before troubleshooting
 connectivity.
 
+**cert-manager — done:**
+- [x] Two Argo Apps: `cert-manager` (Helm, wave 0) + `cert-manager-config` (Kustomize+KSOPS, wave 1).
+- [x] Cloudflare API token SOPS-encrypted at `kubernetes/apps/platform/cert-manager-config/cloudflare-token.sops.yaml`.
+- [x] `letsencrypt-staging` and `letsencrypt-prod` ClusterIssuers — both Ready.
+- [x] `dns01RecursiveNameservers: 1.1.1.1:53,8.8.8.8:53` set to bypass Pi-hole for ACME checks.
+
+**MetalLB — done:**
+- [x] Two Argo Apps: `metallb` (Helm v0.14.8, wave 2) + `metallb-config` (Kustomize, wave 3).
+- [x] L2 mode, single IP pool: `10.0.1.210/32` (Traefik VIP).
+- [x] `metallb-system` namespace labelled `privileged` (required for speaker — NET_ADMIN/NET_RAW/hostNetwork).
+- [x] All 3 speaker pods Running on all nodes; ARP announcements working.
+
+**Traefik — done:**
+- [x] Two Argo Apps: `traefik` (Helm v34.4.0, wave 4) + `traefik-config` (Kustomize, wave 5).
+- [x] LoadBalancer service → EXTERNAL-IP `10.0.1.210`; HTTP→HTTPS redirect via `redirections` (v34 syntax).
+- [x] Wildcard cert `*.lab.ryantaylor.tech` issued by `letsencrypt-prod`; stored as `wildcard-lab-tls` in `traefik` namespace.
+- [x] `TLSStore/default` set to `wildcard-lab-tls` — all IngressRoutes get the wildcard automatically with `tls: {}`.
+- [x] `traefik.lab.ryantaylor.tech` reachable with valid prod cert.
+- [x] Pi-hole v6 wildcard DNS: `misc.dnsmasq_lines = ["address=/.lab.ryantaylor.tech/10.0.1.210"]`.
+
+**Gotchas logged this session:**
+- cert-manager v1.16 Cloudflare cleanup bug: zone ID is empty in DELETE call when cert covers two SANs
+  that share the same `_acme-challenge` DNS name. Workaround: wildcard cert covers only `*.lab.ryantaylor.tech`
+  (no apex SAN). Apex `lab.ryantaylor.tech` will get its own cert when Homepage is deployed.
+  If re-issuance gets stuck: `kubectl -n traefik delete certificaterequest <name>` unblocks it.
+- Pi-hole v6 dropped `/etc/dnsmasq.d/` support. Wildcard DNS goes in:
+  `pihole-FTL --config misc.dnsmasq_lines '["address=/.lab.ryantaylor.tech/10.0.1.210"]'`
+- Traefik Helm chart v34 removed `ports.web.redirectTo`; new syntax is `ports.web.redirections.entryPoint`.
+- MetalLB speaker needs `pod-security.kubernetes.io/enforce: privileged` on its namespace in Talos.
+
 **Next session — start here:**
-- [ ] cert-manager via Argo CD (`kubernetes/apps/platform/cert-manager/`) — install first because
-  Traefik and the wildcard cert depend on it.
-  - Helm chart: `cert-manager` from `https://charts.jetstack.io`, install CRDs.
-  - `ClusterIssuer` for Let's Encrypt DNS-01 via Cloudflare; Cloudflare API token delivered as a
-    SOPS-encrypted secret (decrypted by Argo via KSOPS).
-  - Manual pre-step on fresh cluster: `kubectl create secret generic cloudflare-api-token ...`
-    (or encrypt with SOPS and add a `ksops.yaml` generator so Argo handles it).
-- [ ] Traefik + cert-manager (with Cloudflare DNS-01 issuer) + Authentik installed via Argo CD.
-- [ ] Wildcard cert issued for `*.lab.ryantaylor.tech`.
-- [ ] One trivial app (e.g., `whoami`) reachable at `https://whoami.lab.ryantaylor.tech` behind Authentik.
+- [ ] Authentik via Argo CD (`kubernetes/apps/platform/authentik/`).
+  - Helm chart from `https://charts.goauthentik.io`, chart `authentik`.
+  - Needs PostgreSQL + Redis (bundled in chart or separate).
+  - SOPS-encrypted secret for Authentik secret key + DB password.
+  - IngressRoute at `authentik.lab.ryantaylor.tech` with `tls: {}`.
+- [ ] `whoami` smoke-test app behind Authentik forward-auth middleware.
 - **Exit criteria**: I can `kubectl delete` the whole cluster, re-run Terraform + Argo bootstrap, and the trivial app comes back without manual steps (one documented manual step: providing the age key + Cloudflare API token to the fresh cluster).
 
 ### Phase 2 — Visibility (the dashboard story)
