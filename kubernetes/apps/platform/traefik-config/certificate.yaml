@@ -11,4 +11,3 @@ spec:
   commonName: "*.lab.ryantaylor.tech"
   dnsNames:
     - "*.lab.ryantaylor.tech"
-    - "lab.ryantaylor.tech"
