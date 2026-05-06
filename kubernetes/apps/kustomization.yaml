@@ -7,3 +7,6 @@ resources:
   - platform/metallb-config/application.yaml
   - platform/traefik/application.yaml
   - platform/traefik-config/application.yaml
+  - platform/local-path-provisioner/application.yaml
+  - platform/authentik-config/application.yaml
+  - platform/authentik/application.yaml

@@ -1,0 +1,77 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: authentik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.goauthentik.io
+    chart: authentik
+    targetRevision: 2026.2.2
+    helm:
+      values: |
+        authentik:
+          secret_key: ""
+          error_reporting:
+            enabled: false
+          postgresql:
+            host: authentik-postgresql
+            user: authentik
+            name: authentik
+
+        global:
+          env:
+            - name: AUTHENTIK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-secrets
+                  key: secret-key
+            - name: AUTHENTIK_POSTGRESQL__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-secrets
+                  key: postgresql-password
+
+        server:
+          ingress:
+            enabled: false
+          replicas: 1
+
+        worker:
+          replicas: 1
+
+        postgresql:
+          enabled: true
+          auth:
+            username: authentik
+            database: authentik
+            existingSecret: authentik-secrets
+            secretKeys:
+              adminPasswordKey: postgresql-postgres-password
+              userPasswordKey: postgresql-password
+          primary:
+            persistence:
+              enabled: true
+              size: 8Gi
+              storageClass: local-path
+
+        redis:
+          enabled: true
+          master:
+            persistence:
+              enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: authentik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
