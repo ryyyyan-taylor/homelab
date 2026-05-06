@@ -36,6 +36,16 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | `hdd` | `hdd` | ~980 GB | Talos VMs (Phase 1) |
 | `old-hdd` | — | — | Filesystem mount only; not Proxmox storage |
 
+## Talos Cluster (VMs)
+
+| VM ID | Hostname | IP | Role | Notes |
+|---|---|---|---|---|
+| 200 | talos-t0g-4zz | `10.0.1.200` | control-plane | 2 vCPU / 4 GB, 40 GB on `hdd` |
+| 201 | talos-h1c-3en | `10.0.1.201` | worker | 4 vCPU / 6 GB, 60 GB on `hdd` |
+| 202 | talos-v2f-zv3 | `10.0.1.202` | worker | 4 vCPU / 6 GB, 60 GB on `hdd` |
+
+Talos v1.13.0, Kubernetes v1.36.0. Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted). NIC: `ens18`.
+
 ## Containers
 
 | CT ID | Hostname | IP | Purpose | Notes |

@@ -287,23 +287,13 @@ Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need 
 - [x] Talos metal-amd64 ISO uploaded to Proxmox local storage (`local:iso/talos-metal-amd64.iso`).
 - [x] Terraform provisions **3 Talos VMs** (`terraform/talos-vms.tf`): talos-cp (VM 200, 2 vCPU / 4 GB / 40 GB) + talos-worker-1 (VM 201, 4 vCPU / 6 GB / 60 GB) + talos-worker-2 (VM 202, 4 vCPU / 6 GB / 60 GB). All on `hdd`, ballooning enabled, `on_boot = true`.
 
-**Next: Talos bootstrap**
-
-Planned IPs (set via machine config, not Proxmox):
-- `talos-cp`:       `10.0.1.200`
-- `talos-worker-1`: `10.0.1.201`
-- `talos-worker-2`: `10.0.1.202`
-
-Steps:
-1. Verify `talosctl` is installed on ryan-desktop (`talosctl version --client`)
-2. Start all 3 VMs in Proxmox — they boot from ISO into maintenance mode and get DHCP IPs
-3. Find their temporary DHCP IPs (check router or Proxmox console) — needed to apply initial config
-4. Generate machine configs: `talosctl gen config talos-homelab https://10.0.1.200:6443 --output kubernetes/talos/`
-5. Patch configs with static IPs, node roles, install disk (`/dev/vda`) — commit patched configs to `kubernetes/talos/`
-6. Apply configs: `talosctl apply-config --insecure --nodes <dhcp-ip> --file <cfg>` for each node
-7. Bootstrap: `talosctl bootstrap --nodes 10.0.1.200`
-8. Fetch kubeconfig: `talosctl kubeconfig --nodes 10.0.1.200`
-9. Verify: `kubectl get nodes` shows 3 nodes Ready
+**Talos bootstrap — done:**
+- [x] `talosctl gen secrets` → SOPS-encrypted to `kubernetes/talos/secrets.sops.yaml`
+- [x] Machine configs generated from secrets + per-node patches (`kubernetes/talos/patches/`)
+- [x] Configs applied; all 3 VMs installed Talos to disk and rebooted
+- [x] `talosctl bootstrap` run against control plane
+- [x] Static IPs confirmed: CP `10.0.1.200`, worker-1 `10.0.1.201`, worker-2 `10.0.1.202`
+- [x] `kubectl get nodes` shows 3 nodes Ready (Talos v1.13.0, K8s v1.36.0)
 
 - [ ] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
 - [ ] KSOPS plugin configured on Argo's repo-server; age key delivered as a cluster secret.
