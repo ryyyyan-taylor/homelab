@@ -11,3 +11,4 @@ resources:
   - platform/authentik-config/application.yaml
   - platform/authentik/application.yaml
   - platform/whoami/application.yaml
+  - platform/ntfy/application.yaml

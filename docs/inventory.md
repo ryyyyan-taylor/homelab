@@ -98,6 +98,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 7 | authentik-config | `authentik` | SOPS secrets + Authentik IngressRoute |
 | 8 | authentik | `authentik` | SSO provider (Helm) |
 | 9 | whoami | `whoami` | SSO smoke-test app |
+| 10 | ntfy | `ntfy` | Push notifications (Alertmanager target) |
 
 ### cert-manager
 
@@ -166,6 +167,31 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Forward auth | Embedded outpost (`authentik Embedded Outpost`) — Go router on port 9000 inside server pod |
 | Known gotcha | Authentik 2026.x changed the Traefik forward-auth path from `/auth/tr` → `/auth/traefik`. Middleware address must end in `/outpost.goauthentik.io/auth/traefik` |
 | Known gotcha | ArgoCD v2.14.x schema doesn't include `terminatingReplicas` (added in k8s 1.36) — add `ignoreDifferences` with `jqPathExpressions: [.status.terminatingReplicas]` on Deployment and StatefulSet |
+
+### ntfy
+
+| | |
+|---|---|
+| Version | v2.11.0 |
+| Namespace | `ntfy` |
+| Image | `binwiederhier/ntfy:v2.11.0` |
+| URL | `https://ntfy.lab.ryantaylor.tech` |
+| Auth | ntfy built-in (`auth-default-access: deny-all`) — no Authentik forward-auth |
+| Storage | 2Gi PVC on `local-path` at `/var/lib/ntfy` (auth DB + cache DB + attachments) |
+| Post-deploy setup | See "ntfy user setup" below |
+| Notes | Intentionally NOT behind Authentik — Alertmanager and phone app use ntfy tokens directly |
+
+**ntfy user setup (run once after first deploy):**
+```bash
+# Create admin user (for web UI)
+kubectl exec -n ntfy deploy/ntfy -- ntfy user add --role=admin <username>
+
+# Create publisher token for Alertmanager
+kubectl exec -n ntfy deploy/ntfy -- ntfy token add <username>
+
+# Grant subscriber access to a topic (phone app)
+kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-write
+```
 
 ### whoami (SSO smoke test)
 
