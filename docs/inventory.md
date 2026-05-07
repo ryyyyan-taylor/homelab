@@ -187,12 +187,14 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Alertmanager URL | `https://alertmanager.lab.ryantaylor.tech` |
 | Grafana auth | Authentik forward-auth + Grafana auth.proxy (auto-login via X-Authentik-Username header) |
 | Grafana admin password | `monitoring/monitoring-secrets` Secret, key `grafana-admin-password` (SOPS: `monitoring-config/monitoring-secrets.sops.yaml`) |
+| Grafana dashboards | Node Exporter Full (ID 1860) auto-provisioned via `grafana.dashboards` in Helm values — shows CPU/RAM/disk/network for all LXCs + Proxmox host |
 | Prometheus retention | 30d, 20Gi PVC on `local-path` |
 | Alertmanager config | `monitoring/alertmanager-config` Secret (SOPS: `monitoring-config/alertmanager-config.sops.yaml`) |
 | Alertmanager destination | ntfy at `http://ntfy.ntfy.svc.cluster.local/homelab-alerts`, topic `homelab-alerts` |
 | Proxmox host scrape | `10.0.1.135:9100` — job `proxmox-host-node-exporter` |
 | LXC scrape targets | 10.0.1.151–153, 160–161 on port 9100 — job `lxc-node-exporter` |
 | Disabled monitors | kubeScheduler, kubeControllerManager, kubeEtcd, kubeProxy (Talos doesn't expose these) |
+| LXC alert rules | `monitoring-config/lxc-alerts.yaml` — fires on: node_exporter unreachable >5m, disk >90%, memory >90% |
 | Known gotcha | `ServerSideApply=true` required — chart installs many CRDs that would conflict with ArgoCD's default 3-way merge |
 | Known gotcha | `monitoring` namespace must have `pod-security.kubernetes.io/enforce: privileged` for node-exporter (hostNetwork/hostPID/hostPath) |
 | Known gotcha | local-path PVCs + subPath bind mounts: kubelet's fsGroup chown does NOT propagate through the subPath. Init container must mount with the same `subPath` and `mountPath` as the main container, then chown there |
@@ -260,8 +262,9 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Installed on | All LXCs: CT 151–153, 160–161 |
 | Config | `/etc/promtail/config.yml` (template: `ansible/roles/base/templates/promtail-config.yml.j2`) |
 | Loki target | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` |
-| Labels | `job: lxc`, `host: <hostname>` |
-| Log paths | `/var/log/*.log`, `/var/log/syslog` |
+| Labels | `job: lxc`, `host: <hostname>` (system logs); `job: game_server`, `host: <hostname>` (game logs) |
+| Log paths (all LXCs) | `/var/log/*.log`, `/var/log/syslog` |
+| Log paths (game servers) | `/home/*/log/*.log` (LGSM console logs), `/home/*/serverfiles/logs/*.log` (Minecraft game logs) — set via `group_vars/game_servers/vars.yml` |
 
 ### Homepage
 
@@ -275,6 +278,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Auth | None — dashboard is internal-only via Tailscale |
 | Config | ConfigMap `homepage-config` — settings, services, widgets, kubernetes config |
 | Kubernetes integration | ClusterRole `homepage` via in-cluster ServiceAccount — reads nodes/pods/deployments |
+| Minecraft widget | `type: minecraft, url: udp://10.0.1.152:25565` — shows server status and player count when CT 152 is running |
 | Known gotcha | cert-manager v1.16 Cloudflare bug prevents apex + wildcard sharing SANs. Apex cert is its own Certificate resource in the `homepage` namespace; IngressRoute references it via `tls.secretName: apex-lab-tls` |
 
 ### Uptime Kuma

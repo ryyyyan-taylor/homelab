@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lxc-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: lxc
+      rules:
+        - alert: LxcNodeExporterDown
+          expr: up{job="lxc-node-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LXC node_exporter unreachable: {{ $labels.hostname }}"
+            description: "node_exporter on {{ $labels.hostname }} ({{ $labels.instance }}) has been unreachable for 5 minutes. The LXC may be stopped or crashed."
+
+        - alert: LxcDiskSpaceCritical
+          expr: |
+            (1 - (node_filesystem_avail_bytes{job="lxc-node-exporter", fstype!="tmpfs"}
+                / node_filesystem_size_bytes{job="lxc-node-exporter", fstype!="tmpfs"})) > 0.90
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "LXC disk >90% full: {{ $labels.hostname }}"
+            description: "{{ $labels.hostname }} mountpoint {{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full."
+
+        - alert: LxcHighMemory
+          expr: |
+            (1 - (node_memory_MemAvailable_bytes{job="lxc-node-exporter"}
+                / node_memory_MemTotal_bytes{job="lxc-node-exporter"})) > 0.90
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LXC memory >90%: {{ $labels.hostname }}"
+            description: "{{ $labels.hostname }} has been using >90% of available memory for 15 minutes."

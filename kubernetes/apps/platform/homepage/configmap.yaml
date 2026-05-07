@@ -84,6 +84,9 @@ data:
         - Minecraft:
             description: "CT 152 — TCP 25565"
             icon: minecraft
+            widget:
+              type: minecraft
+              url: udp://10.0.1.152:25565
         - Terraria:
             description: "CT 153 — TCP 7777"
             icon: terraria

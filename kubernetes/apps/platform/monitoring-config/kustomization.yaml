@@ -7,5 +7,6 @@ resources:
   - grafana-ingressroute.yaml
   - prometheus-ingressroute.yaml
   - alertmanager-ingressroute.yaml
+  - lxc-alerts.yaml
 generators:
   - ksops.yaml

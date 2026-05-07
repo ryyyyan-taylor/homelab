@@ -5,3 +5,6 @@ node_exporter_port: 9100
 promtail_version: "3.0.0"
 loki_push_url: "http://loki.lab.ryantaylor.tech/loki/api/v1/push"
 base_install_promtail: true
+
+# Extra glob paths to ship to Loki — override in group_vars for game servers etc.
+promtail_extra_log_paths: []

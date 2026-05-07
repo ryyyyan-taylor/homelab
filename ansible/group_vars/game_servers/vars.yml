@@ -1,0 +1,6 @@
+---
+# LGSM stores console/script logs under ~/log/ and game-specific logs vary by title.
+# Promtail picks these up and ships them to Loki as job=game_server.
+promtail_extra_log_paths:
+  - /home/*/log/*.log
+  - /home/*/serverfiles/logs/*.log

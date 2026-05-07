@@ -131,6 +131,12 @@ spec:
               url: http://loki.loki.svc.cluster.local:3100
               access: proxy
               isDefault: false
+          dashboards:
+            default:
+              node-exporter-full:
+                gnetId: 1860
+                revision: 37
+                datasource: Prometheus
           grafana.ini:
             server:
               root_url: https://grafana.lab.ryantaylor.tech

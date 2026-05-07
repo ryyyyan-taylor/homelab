@@ -23,3 +23,15 @@ scrape_configs:
           job: lxc
           host: {{ ansible_facts['hostname'] }}
           __path__: /var/log/syslog
+{% if promtail_extra_log_paths | length > 0 %}
+  - job_name: game_server
+    static_configs:
+{% for path in promtail_extra_log_paths %}
+      - targets:
+          - localhost
+        labels:
+          job: game_server
+          host: {{ ansible_facts['hostname'] }}
+          __path__: {{ path }}
+{% endfor %}
+{% endif %}
