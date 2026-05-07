@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: loki
+  labels:
+    # Promtail DaemonSet uses hostPath (/var/log/pods) — baseline policy forbids it
+    pod-security.kubernetes.io/enforce: privileged

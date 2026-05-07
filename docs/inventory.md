@@ -101,6 +101,9 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 10 | ntfy | `ntfy` | Push notifications (Alertmanager target) |
 | 11 | monitoring-config | `monitoring` | SOPS secrets + IngressRoutes for monitoring stack |
 | 12 | monitoring | `monitoring` | kube-prometheus-stack (Prometheus + Grafana + Alertmanager) |
+| 13 | loki-config | `loki` | Namespace (privileged PSA) + IngressRoute |
+| 14 | loki | `loki` | Loki log aggregation (single-binary mode) |
+| 15 | promtail | `loki` | Promtail DaemonSet — cluster pod logs → Loki |
 
 ### cert-manager
 
@@ -216,6 +219,45 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy token add <username>
 # Grant subscriber access to a topic (phone app)
 kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-write
 ```
+
+### Loki
+
+| | |
+|---|---|
+| Version | 6.29.0 (chart), Loki 3.x |
+| Namespace | `loki` |
+| Helm repo | `https://grafana.github.io/helm-charts` |
+| URL | `https://loki.lab.ryantaylor.tech` |
+| Mode | Single-binary (1 replica) |
+| Storage | Filesystem, 10Gi PVC on `local-path` at `/var/loki` |
+| Auth | Disabled (`auth_enabled: false`) — internal-only, behind Pi-hole wildcard DNS |
+| Schema | v13 (tsdb + filesystem, from 2024-04-01) |
+| Grafana datasource | `http://loki.loki.svc.cluster.local:3100` — added via `additionalDataSources` in kube-prometheus-stack values |
+| Push endpoint | `http://loki.loki.svc.cluster.local:3100/loki/api/v1/push` (cluster Promtail) |
+| Push endpoint (LXC) | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` (LXC Promtail via Traefik) |
+
+### Promtail (cluster)
+
+| | |
+|---|---|
+| Version | 6.16.6 (chart) |
+| Namespace | `loki` |
+| Helm repo | `https://grafana.github.io/helm-charts` |
+| Type | DaemonSet — ships cluster pod logs to Loki |
+| Loki target | `http://loki.loki.svc.cluster.local:3100/loki/api/v1/push` |
+| Scrapes | `/var/log/pods/` on each node (standard kubelet log path) |
+
+### Promtail (LXC)
+
+| | |
+|---|---|
+| Version | 3.0.0 (binary) |
+| Managed by | Ansible `base` role |
+| Installed on | All LXCs: CT 151–153, 160–161 |
+| Config | `/etc/promtail/config.yml` (template: `ansible/roles/base/templates/promtail-config.yml.j2`) |
+| Loki target | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` |
+| Labels | `job: lxc`, `host: <hostname>` |
+| Log paths | `/var/log/*.log`, `/var/log/syslog` |
 
 ### whoami (SSO smoke test)
 
