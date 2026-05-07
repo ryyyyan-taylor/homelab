@@ -99,6 +99,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 8 | authentik | `authentik` | SSO provider (Helm) |
 | 9 | whoami | `whoami` | SSO smoke-test app |
 | 10 | ntfy | `ntfy` | Push notifications (Alertmanager target) |
+| 11 | monitoring-config | `monitoring` | SOPS secrets + IngressRoutes for monitoring stack |
+| 12 | monitoring | `monitoring` | kube-prometheus-stack (Prometheus + Grafana + Alertmanager) |
 
 ### cert-manager
 
@@ -167,6 +169,25 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Forward auth | Embedded outpost (`authentik Embedded Outpost`) — Go router on port 9000 inside server pod |
 | Known gotcha | Authentik 2026.x changed the Traefik forward-auth path from `/auth/tr` → `/auth/traefik`. Middleware address must end in `/outpost.goauthentik.io/auth/traefik` |
 | Known gotcha | ArgoCD v2.14.x schema doesn't include `terminatingReplicas` (added in k8s 1.36) — add `ignoreDifferences` with `jqPathExpressions: [.status.terminatingReplicas]` on Deployment and StatefulSet |
+
+### kube-prometheus-stack
+
+| | |
+|---|---|
+| Version | 84.5.0 (chart) |
+| Namespace | `monitoring` |
+| Helm repo | `https://prometheus-community.github.io/helm-charts` |
+| Grafana URL | `https://grafana.lab.ryantaylor.tech` |
+| Prometheus URL | `https://prometheus.lab.ryantaylor.tech` |
+| Alertmanager URL | `https://alertmanager.lab.ryantaylor.tech` |
+| Grafana auth | Authentik forward-auth + Grafana auth.proxy (auto-login via X-Authentik-Username header) |
+| Grafana admin password | `monitoring/monitoring-secrets` Secret, key `grafana-admin-password` (SOPS: `monitoring-config/monitoring-secrets.sops.yaml`) |
+| Prometheus retention | 30d, 20Gi PVC on `local-path` |
+| Alertmanager config | `monitoring/alertmanager-config` Secret (SOPS: `monitoring-config/alertmanager-config.sops.yaml`) |
+| Alertmanager destination | ntfy at `http://ntfy.ntfy.svc.cluster.local/homelab-alerts`, topic `homelab-alerts` |
+| LXC scrape targets | 10.0.1.151–153, 160–161 on port 9100 (node_exporter) |
+| Disabled monitors | kubeScheduler, kubeControllerManager, kubeEtcd, kubeProxy (Talos doesn't expose these) |
+| Known gotcha | `ServerSideApply=true` required — chart installs many CRDs that would conflict with ArgoCD's default 3-way merge |
 
 ### ntfy
 

@@ -1,0 +1,122 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 84.5.0
+    helm:
+      values: |
+        fullnameOverride: monitoring
+
+        # Disable control-plane monitors — Talos doesn't expose these endpoints
+        kubeScheduler:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeProxy:
+          enabled: false
+
+        # Prometheus
+        prometheus:
+          ingress:
+            enabled: false
+          prometheusSpec:
+            retention: 30d
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: local-path
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 20Gi
+            additionalScrapeConfigs:
+              - job_name: lxc-node-exporter
+                static_configs:
+                  - targets: ['10.0.1.151:9100']
+                    labels:
+                      hostname: corekeeper
+                  - targets: ['10.0.1.152:9100']
+                    labels:
+                      hostname: minecraft
+                  - targets: ['10.0.1.153:9100']
+                    labels:
+                      hostname: terraria
+                  - targets: ['10.0.1.160:9100']
+                    labels:
+                      hostname: pihole
+                  - targets: ['10.0.1.161:9100']
+                    labels:
+                      hostname: network
+
+        # Alertmanager
+        alertmanager:
+          ingress:
+            enabled: false
+          alertmanagerSpec:
+            configSecret: alertmanager-config
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: local-path
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 2Gi
+
+        # Grafana
+        grafana:
+          ingress:
+            enabled: false
+          persistence:
+            enabled: true
+            storageClassName: local-path
+            size: 5Gi
+          admin:
+            existingSecret: monitoring-secrets
+            userKey: ""
+            passwordKey: grafana-admin-password
+          grafana.ini:
+            server:
+              root_url: https://grafana.lab.ryantaylor.tech
+            "auth.proxy":
+              enabled: "true"
+              header_name: X-Authentik-Username
+              header_property: username
+              auto_sign_up: "true"
+            auth:
+              signout_redirect_url: "https://authentik.lab.ryantaylor.tech"
+            users:
+              auto_assign_org: "true"
+              auto_assign_org_role: Admin
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .status.terminatingReplicas
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .status.terminatingReplicas
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
