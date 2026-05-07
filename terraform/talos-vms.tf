@@ -29,9 +29,11 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
   }
 
   # Control plane never balloons — API server OOMs took down the cluster
-  # when ballooned to dedicated floor under kube-prometheus-stack load
+  # when ballooned to dedicated floor under kube-prometheus-stack load.
+  # 6 GB needed because etcd + API server hold all kube-prometheus-stack
+  # CRDs/objects in memory; 4 GB hit 97% under steady-state load.
   memory {
-    dedicated = 4096
+    dedicated = 6144
   }
 
   disk {
