@@ -35,7 +35,7 @@ data:
     - Platform:
         - ArgoCD:
             href: https://argocd.lab.ryantaylor.tech
-            icon: argocd
+            icon: si-argo
             description: GitOps engine
         - Traefik:
             href: https://traefik.lab.ryantaylor.tech
