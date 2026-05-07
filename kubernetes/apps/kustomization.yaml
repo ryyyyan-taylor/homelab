@@ -12,6 +12,7 @@ resources:
   - platform/authentik/application.yaml
   - platform/whoami/application.yaml
   - platform/ntfy/application.yaml
+  - platform/metrics-server/application.yaml
   - platform/monitoring-config/application.yaml
   - platform/monitoring/application.yaml
   - platform/loki-config/application.yaml

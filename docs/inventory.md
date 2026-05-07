@@ -99,6 +99,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 8 | authentik | `authentik` | SSO provider (Helm) |
 | 9 | whoami | `whoami` | SSO smoke-test app |
 | 10 | ntfy | `ntfy` | Push notifications (Alertmanager target) |
+| 11 | metrics-server | `kube-system` | metrics.k8s.io API — enables kubectl top + Homepage kubernetes widget |
 | 11 | monitoring-config | `monitoring` | SOPS secrets + IngressRoutes for monitoring stack |
 | 12 | monitoring | `monitoring` | kube-prometheus-stack (Prometheus + Grafana + Alertmanager) |
 | 13 | loki-config | `loki` | Namespace (privileged PSA) + IngressRoute |
@@ -199,6 +200,18 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Known gotcha | `monitoring` namespace must have `pod-security.kubernetes.io/enforce: privileged` for node-exporter (hostNetwork/hostPID/hostPath) |
 | Known gotcha | local-path PVCs + subPath bind mounts: kubelet's fsGroup chown does NOT propagate through the subPath. Init container must mount with the same `subPath` and `mountPath` as the main container, then chown there |
 | Known gotcha | Control plane VM must NOT balloon — when ballooned to floor (2 GB) under kube-prometheus-stack load, kube-apiserver OOMs in a Go runtime crash loop. Set `dedicated = 4096` (no `floating`) in Terraform |
+| Known gotcha | Grafana init-chown-data drops all caps except CHOWN; after Grafana writes 0700 dirs to the PVC, rolling updates fail traversing them. Fix: add `DAC_OVERRIDE` via `grafana.initChownData.securityContext.capabilities.add` |
+| Known gotcha | `prometheusAdapter.enabled: true` does not render resources when `fullnameOverride: monitoring` is set — use standalone metrics-server instead |
+
+### metrics-server
+
+| | |
+|---|---|
+| Version | 3.12.2 (chart) |
+| Namespace | `kube-system` |
+| Helm repo | `https://kubernetes-sigs.github.io/metrics-server/` |
+| Purpose | Serves `metrics.k8s.io/v1beta1` — enables `kubectl top nodes/pods` and Homepage kubernetes widget CPU/memory display |
+| Known gotcha | Talos kubelet TLS certs are signed by the Talos CA. metrics-server must use `--kubelet-insecure-tls` to skip cert verification when scraping kubelet |
 
 ### ntfy
 
