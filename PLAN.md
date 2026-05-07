@@ -389,8 +389,12 @@ connectivity.
 - [x] Uptime Kuma deployed (`kubernetes/apps/platform/uptime-kuma/`, wave 16, `uptime.lab.ryantaylor.tech`). Synthetic checks to be configured via UI after first deploy.
 - [x] Homepage deployed as the landing page at `lab.ryantaylor.tech` (`kubernetes/apps/platform/homepage/`, wave 17). Tiles for all services. Kubernetes cluster widget. Apex cert issued separately (`homepage/apex-lab-tls`) due to cert-manager v1.16 dual-SAN bug.
 - **Exit criteria**: one URL (`lab.ryantaylor.tech`) shows host + cluster + LXC service health. Alertmanager pushes a phone notification via ntfy when something is actually broken.
+- **Status**: ✅ Phase 2 complete. All services reachable. Uptime Kuma monitors to be configured via UI.
 
-**Gotchas logged this phase:**
+**Gotchas logged this phase (continued):**
+- Homepage mounts config via ConfigMap. Mounting the whole directory at `/app/config` makes it read-only; Homepage tries to `mkdir /app/config/logs` on startup and crashes (ENOENT). Fix: mount each config file individually with `subPath` so `/app/config` itself remains a writable container directory.
+
+**Gotchas logged this phase (original):**
 - local-path PVCs + subPath bind mounts: kubelet fsGroup chown does NOT propagate through the subPath. Fix: init container must mount with the same `subPath` as the main container and chown there (affects Prometheus, Alertmanager).
 - Grafana `userKey: ""` does not skip the secret lookup — must provide a real key. Added `grafana-admin-user: admin` to SOPS secret.
 - kube-prometheus-stack `fullnameOverride: monitoring` strips the chart name from service names — IngressRoutes must use `monitoring-prometheus`, `monitoring-alertmanager`, not `monitoring-kube-prometheus-stack-*`.
