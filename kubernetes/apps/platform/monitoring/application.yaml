@@ -33,6 +33,22 @@ spec:
             enabled: false
           prometheusSpec:
             retention: 30d
+            # local-path-provisioner doesn't honor fsGroup with subPath mounts —
+            # init container chowns the prometheus-db subPath so Prometheus (uid 1000) can write
+            initContainers:
+              - name: init-chown-data
+                image: busybox:1.37.0
+                command:
+                  - sh
+                  - -c
+                  - mkdir -p /data/prometheus-db && chown -R 1000:2000 /data
+                volumeMounts:
+                  - name: prometheus-monitoring-prometheus-db
+                    mountPath: /data
+                securityContext:
+                  runAsUser: 0
+                  runAsNonRoot: false
+                  allowPrivilegeEscalation: true
             storageSpec:
               volumeClaimTemplate:
                 spec:
