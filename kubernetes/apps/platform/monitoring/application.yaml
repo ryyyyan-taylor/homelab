@@ -85,7 +85,7 @@ spec:
             size: 5Gi
           admin:
             existingSecret: monitoring-secrets
-            userKey: ""
+            userKey: grafana-admin-user
             passwordKey: grafana-admin-password
           grafana.ini:
             server:

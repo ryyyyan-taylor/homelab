@@ -28,9 +28,10 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
     type    = "host"
   }
 
+  # Control plane never balloons — API server OOMs took down the cluster
+  # when ballooned to dedicated floor under kube-prometheus-stack load
   memory {
-    dedicated = 2048
-    floating  = 4096
+    dedicated = 4096
   }
 
   disk {
