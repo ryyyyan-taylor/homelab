@@ -41,7 +41,7 @@ spec:
                 command:
                   - sh
                   - -c
-                  - mkdir -p /data/prometheus-db && chown -R 1000:2000 /data
+                  - mkdir -p /data/prometheus-db && chown -R 1000:2000 /data && chmod -R 775 /data
                 volumeMounts:
                   - name: prometheus-monitoring-prometheus-db
                     mountPath: /data
