@@ -64,14 +64,16 @@ spec:
         resultsCache:
           enabled: false
 
-        # Disable self-monitoring stack and canary
+        # Disable canary DaemonSet (lokiCanary is top-level in chart 6.x)
+        lokiCanary:
+          enabled: false
+
+        # Disable self-monitoring (Grafana Agent operator)
         monitoring:
           selfMonitoring:
             enabled: false
             grafanaAgent:
               installOperator: false
-          lokiCanary:
-            enabled: false
 
         # Disable Helm test
         test:
@@ -79,6 +81,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: loki
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.updateStrategy.rollingUpdate.partition
+        - .status.terminatingReplicas
   syncPolicy:
     automated:
       prune: true
