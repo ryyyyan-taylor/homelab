@@ -86,6 +86,7 @@ spec:
       kind: StatefulSet
       jqPathExpressions:
         - .spec.updateStrategy.rollingUpdate.partition
+        - .spec.persistentVolumeClaimRetentionPolicy
         - .status.terminatingReplicas
   syncPolicy:
     automated:
