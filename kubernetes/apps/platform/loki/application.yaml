@@ -58,6 +58,12 @@ spec:
         minio:
           enabled: false
 
+        # Disable memcached caches (not needed for single-node homelab)
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+
         # Disable self-monitoring stack and canary
         monitoring:
           selfMonitoring:
