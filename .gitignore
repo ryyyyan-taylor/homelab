@@ -16,5 +16,6 @@ ansible/inventory/proxmox.yml
 .DS_Store
 Thumbs.db
 
-# Claude Code
+# Claude Code & local planning
 CLAUDE.md
+PLAN.md
