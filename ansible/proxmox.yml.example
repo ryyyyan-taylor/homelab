@@ -14,6 +14,10 @@ compose:
   # All LXCs follow the 10.0.1.<vmid> convention.
   ansible_host: "'10.0.1.' + (proxmox_vmid | string)"
 
+# Only include the 5 LXC containers — exclude Talos VMs (200-202) and Proxmox host node
+filters:
+  - proxmox_vmid | int in [151, 152, 153, 160, 161]
+
 groups:
   game_servers:   proxmox_vmid | int in [151, 152, 153]
   infrastructure: proxmox_vmid | int in [160, 161]
