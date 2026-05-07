@@ -37,11 +37,16 @@ spec:
 
         singleBinary:
           replicas: 1
+          # Explicitly set updateStrategy to match server-defaulted live state
+          updateStrategy:
+            type: RollingUpdate
+            rollingUpdate:
+              partition: 0
           persistence:
             enabled: true
             storageClass: local-path
             size: 10Gi
-            # Disable auto-delete PVC policy — live state was Retain; keep local-path PVC
+            # Disable auto-delete PVC policy so live state (Retain) matches target (absent=Retain)
             enableStatefulSetAutoDeletePVC: false
 
         # Disable scale-out components (not needed for single binary)
