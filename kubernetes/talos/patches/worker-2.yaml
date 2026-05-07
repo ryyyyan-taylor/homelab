@@ -1,6 +1,5 @@
 machine:
   network:
-    hostname: talos-wk-202
     interfaces:
       - interface: ens18
         dhcp: false

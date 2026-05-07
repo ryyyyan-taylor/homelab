@@ -47,6 +47,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 - Talos v1.13.0, Kubernetes v1.36.0
 - Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted)
 - NIC: `ens18`
+- Known gotcha | Talos v1.13 `talosctl gen config` produces multi-document YAML. The second document is `kind: HostnameConfig` with `auto: stable`. To set a static hostname, change that document to `hostname: <name>` — do NOT use `machine.network.hostname` in the main document; it conflicts and causes `"static hostname is already set in v1alpha1 config"`. JSON6902 patches are unsupported on multi-document configs; use strategic-merge patches for the main doc and edit the HostnameConfig document directly in the generated file. After applying, a reboot is required for the kubelet to re-register under the new name. Delete the old stale node object with `kubectl delete node <old-name>` after the node rejoins.
 
 ## LXC Containers
 
