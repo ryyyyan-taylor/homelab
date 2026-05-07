@@ -41,10 +41,11 @@ spec:
                 command:
                   - sh
                   - -c
-                  - mkdir -p /data/prometheus-db && chown -R 1000:2000 /data && chmod -R 1777 /data
+                  - chown -R 1000:2000 /prometheus && chmod -R 1777 /prometheus
                 volumeMounts:
                   - name: prometheus-monitoring-prometheus-db
-                    mountPath: /data
+                    mountPath: /prometheus
+                    subPath: prometheus-db
                 securityContext:
                   runAsUser: 0
                   runAsNonRoot: false
