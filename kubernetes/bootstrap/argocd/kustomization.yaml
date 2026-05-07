@@ -5,8 +5,13 @@ resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v2.14.2/manifests/install.yaml
   - cmp-plugin-cm.yaml
   - argocd-cm-patch.yaml
+  - ingressroute.yaml
 patches:
   - path: repo-server-patch.yaml
     target:
       kind: Deployment
       name: argocd-repo-server
+  - path: argocd-server-patch.yaml
+    target:
+      kind: Deployment
+      name: argocd-server
