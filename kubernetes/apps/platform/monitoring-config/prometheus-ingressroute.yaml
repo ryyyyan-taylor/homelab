@@ -13,6 +13,6 @@ spec:
         - name: authentik-forwardauth
           namespace: traefik
       services:
-        - name: monitoring-kube-prometheus-stack-prometheus
+        - name: monitoring-prometheus
           port: 9090
   tls: {}
