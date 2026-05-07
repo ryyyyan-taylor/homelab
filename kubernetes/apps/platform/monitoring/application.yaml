@@ -27,6 +27,14 @@ spec:
         kubeProxy:
           enabled: false
 
+        # Serves metrics.k8s.io API (kubectl top, Homepage kubernetes widget)
+        # backed by Prometheus — no separate metrics-server needed
+        prometheusAdapter:
+          enabled: true
+          prometheus:
+            url: http://monitoring-prometheus.monitoring.svc
+            port: 9090
+
         # Prometheus
         prometheus:
           ingress:
