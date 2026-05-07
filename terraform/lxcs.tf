@@ -24,6 +24,11 @@ resource "proxmox_virtual_environment_container" "corekeeper" {
   initialization {
     hostname = "corekeeper"
 
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
+
     ip_config {
       ipv4 {
         address = "10.0.1.151/24"
@@ -90,6 +95,11 @@ resource "proxmox_virtual_environment_container" "minecraft" {
   initialization {
     hostname = "minecraft"
 
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
+
     ip_config {
       ipv4 {
         address = "10.0.1.152/24"
@@ -149,6 +159,11 @@ resource "proxmox_virtual_environment_container" "terraria" {
 
   initialization {
     hostname = "terraria"
+
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
 
     ip_config {
       ipv4 {
@@ -212,6 +227,12 @@ resource "proxmox_virtual_environment_container" "pihole" {
 
   initialization {
     hostname = "pi-hole"
+
+    # Pi-hole resolves *.lab.ryantaylor.tech locally via its own FTL daemon
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
 
     ip_config {
       ipv4 {
@@ -279,6 +300,11 @@ resource "proxmox_virtual_environment_container" "network" {
 
   initialization {
     hostname = "network"
+
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
 
     ip_config {
       ipv4 {
