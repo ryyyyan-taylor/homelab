@@ -376,13 +376,23 @@ connectivity.
 - **Exit criteria**: I can `kubectl delete` the whole cluster, re-run Terraform + Argo bootstrap, and the trivial app comes back without manual steps (one documented manual step: providing the age key + Cloudflare API token to the fresh cluster).
 
 ### Phase 2 — Visibility (the dashboard story)
-- [ ] kube-prometheus-stack via Argo CD; Grafana behind Authentik.
-- [ ] Loki + cluster-side Promtail; LXC Promtails (installed in Phase 0.5) start shipping to it.
-- [ ] Prometheus configured to scrape: Proxmox host node_exporter, each LXC's node_exporter, in-cluster targets.
+- [x] **ntfy** deployed (wave 10); Alertmanager wired to `homelab-alerts` topic; phone subscribed via token.
+- [x] **kube-prometheus-stack** (wave 11–12): Prometheus (30d retention, 20Gi PVC) + Grafana (SSO via Authentik auth.proxy) + Alertmanager (config from SOPS secret). LXC node_exporters scraped. Alert pipeline confirmed: Prometheus → Alertmanager → ntfy.
+- [x] **Loki** (wave 14, single-binary, 10Gi PVC) + **cluster Promtail** (wave 15, DaemonSet) deployed. Cluster pod logs flowing. Grafana has Loki as additional datasource.
+- [x] **LXC Promtails** (network, pi-hole) restarted and shipping to `loki.lab.ryantaylor.tech` after DNS fix (LXC nameserver updated to Pi-hole via `pct set` + Terraform).
+- [x] ArgoCD CM patched to ignore k8s 1.36 StatefulSet defaults (`updateStrategy.type`, `persistentVolumeClaimRetentionPolicy`) — persisted in `kubernetes/bootstrap/argocd/argocd-cm-patch.yaml`.
+- [ ] Prometheus configured to scrape Proxmox host node_exporter.
 - [ ] Uptime Kuma deployed; synthetic checks added for every service in the inventory (cluster + LXC).
 - [ ] Homepage deployed as the landing page at `lab.ryantaylor.tech`; tiles added for every service in the inventory; status widgets wired to Uptime Kuma + Prometheus.
-- [ ] ntfy server deployed; Alertmanager wired to publish to ntfy topics; phone subscribed.
 - **Exit criteria**: one URL (`lab.ryantaylor.tech`) shows host + cluster + LXC service health. Alertmanager pushes a phone notification via ntfy when something is actually broken.
+
+**Gotchas logged this phase:**
+- local-path PVCs + subPath bind mounts: kubelet fsGroup chown does NOT propagate through the subPath. Fix: init container must mount with the same `subPath` as the main container and chown there (affects Prometheus, Alertmanager).
+- Grafana `userKey: ""` does not skip the secret lookup — must provide a real key. Added `grafana-admin-user: admin` to SOPS secret.
+- kube-prometheus-stack `fullnameOverride: monitoring` strips the chart name from service names — IngressRoutes must use `monitoring-prometheus`, `monitoring-alertmanager`, not `monitoring-kube-prometheus-stack-*`.
+- Control plane VM must NOT balloon — kube-apiserver OOMs under CRD load when ballooned to floor. Set `dedicated = 6144` (no `floating`) in Terraform.
+- Loki 6.x chart omits `updateStrategy.type` and `persistentVolumeClaimRetentionPolicy` in the rendered StatefulSet; k8s 1.36 defaults both. App-level `ignoreDifferences.jqPathExpressions` is ignored unless `resource.customizations.ignoreDifferences.apps_StatefulSet` is set in `argocd-cm`. Fixed in bootstrap.
+- LXC Promtails use router DNS (10.0.1.1) by default — `*.lab.ryantaylor.tech` doesn't resolve until nameserver is set to Pi-hole (10.0.1.160) via `pct set` / Terraform `initialization.dns`.
 
 ### Phase 3 — Self-service ("1-click")
 - [ ] **Self-hosted GH Actions runner** provisioned as a small LXC on the homelab. Polls GitHub for jobs; all connections outbound — no inbound ports or public exposure. Hosted runners continue handling CI jobs that don't need homelab access (lint, validate, plan).
