@@ -57,10 +57,6 @@ data:
             href: https://alertmanager.lab.ryantaylor.tech
             icon: alertmanager
             description: Alerts
-        - Loki:
-            href: https://loki.lab.ryantaylor.tech
-            icon: loki
-            description: Log aggregation
         - Uptime Kuma:
             href: https://uptime.lab.ryantaylor.tech
             icon: uptime-kuma
