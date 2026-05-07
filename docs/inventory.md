@@ -235,6 +235,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Grafana datasource | `http://loki.loki.svc.cluster.local:3100` — added via `additionalDataSources` in kube-prometheus-stack values |
 | Push endpoint | `http://loki.loki.svc.cluster.local:3100/loki/api/v1/push` (cluster Promtail) |
 | Push endpoint (LXC) | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` (LXC Promtail via Traefik) |
+| Known gotcha | Loki 6.x chart omits `spec.updateStrategy.type` and `spec.persistentVolumeClaimRetentionPolicy` in the rendered StatefulSet; k8s 1.36 defaults both, causing a permanent OutOfSync. Fix: add global `resource.customizations.ignoreDifferences.apps_StatefulSet` to `argocd-cm` (in bootstrap). App-level `ignoreDifferences.jqPathExpressions` alone is insufficient when global argocd-cm customizations are not set. |
 
 ### Promtail (cluster)
 
