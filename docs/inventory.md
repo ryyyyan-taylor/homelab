@@ -104,6 +104,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 13 | loki-config | `loki` | Namespace (privileged PSA) + IngressRoute |
 | 14 | loki | `loki` | Loki log aggregation (single-binary mode) |
 | 15 | promtail | `loki` | Promtail DaemonSet — cluster pod logs → Loki |
+| 16 | uptime-kuma | `uptime-kuma` | Synthetic uptime checks for all services |
+| 17 | homepage | `homepage` | Dashboard landing page at `lab.ryantaylor.tech` |
 
 ### cert-manager
 
@@ -188,7 +190,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Prometheus retention | 30d, 20Gi PVC on `local-path` |
 | Alertmanager config | `monitoring/alertmanager-config` Secret (SOPS: `monitoring-config/alertmanager-config.sops.yaml`) |
 | Alertmanager destination | ntfy at `http://ntfy.ntfy.svc.cluster.local/homelab-alerts`, topic `homelab-alerts` |
-| LXC scrape targets | 10.0.1.151–153, 160–161 on port 9100 (node_exporter) |
+| Proxmox host scrape | `10.0.1.135:9100` — job `proxmox-host-node-exporter` |
+| LXC scrape targets | 10.0.1.151–153, 160–161 on port 9100 — job `lxc-node-exporter` |
 | Disabled monitors | kubeScheduler, kubeControllerManager, kubeEtcd, kubeProxy (Talos doesn't expose these) |
 | Known gotcha | `ServerSideApply=true` required — chart installs many CRDs that would conflict with ArgoCD's default 3-way merge |
 | Known gotcha | `monitoring` namespace must have `pod-security.kubernetes.io/enforce: privileged` for node-exporter (hostNetwork/hostPID/hostPath) |
@@ -259,6 +262,32 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Loki target | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` |
 | Labels | `job: lxc`, `host: <hostname>` |
 | Log paths | `/var/log/*.log`, `/var/log/syslog` |
+
+### Homepage
+
+| | |
+|---|---|
+| Version | v0.10.9 |
+| Namespace | `homepage` |
+| Image | `ghcr.io/gethomepage/homepage:v0.10.9` |
+| URL | `https://lab.ryantaylor.tech` (apex) |
+| TLS cert | `homepage/apex-lab-tls` — separate Certificate resource (apex not covered by wildcard) |
+| Auth | None — dashboard is internal-only via Tailscale |
+| Config | ConfigMap `homepage-config` — settings, services, widgets, kubernetes config |
+| Kubernetes integration | ClusterRole `homepage` via in-cluster ServiceAccount — reads nodes/pods/deployments |
+| Known gotcha | cert-manager v1.16 Cloudflare bug prevents apex + wildcard sharing SANs. Apex cert is its own Certificate resource in the `homepage` namespace; IngressRoute references it via `tls.secretName: apex-lab-tls` |
+
+### Uptime Kuma
+
+| | |
+|---|---|
+| Version | 1.23.16 |
+| Namespace | `uptime-kuma` |
+| Image | `louislam/uptime-kuma:1.23.16` |
+| URL | `https://uptime.lab.ryantaylor.tech` |
+| Auth | Built-in (set admin account on first visit) |
+| Storage | 2Gi PVC on `local-path` at `/app/data` (SQLite) |
+| Notes | Auth is Uptime Kuma's own login — no Authentik forward-auth. Status pages are publicly accessible. |
 
 ### whoami (SSO smoke test)
 

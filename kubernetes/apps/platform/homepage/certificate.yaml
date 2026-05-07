@@ -1,0 +1,16 @@
+# Separate cert for the apex domain — cannot share SANs with *.lab.ryantaylor.tech
+# due to the cert-manager v1.16 Cloudflare cleanup bug (empty zone ID on DELETE
+# when two SANs share the same _acme-challenge name).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apex-lab
+  namespace: homepage
+spec:
+  secretName: apex-lab-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "lab.ryantaylor.tech"
+  dnsNames:
+    - "lab.ryantaylor.tech"

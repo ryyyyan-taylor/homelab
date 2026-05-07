@@ -17,3 +17,5 @@ resources:
   - platform/loki-config/application.yaml
   - platform/loki/application.yaml
   - platform/promtail/application.yaml
+  - platform/uptime-kuma/application.yaml
+  - platform/homepage/application.yaml

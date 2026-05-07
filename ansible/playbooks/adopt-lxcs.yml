@@ -1,6 +1,6 @@
 ---
 - name: Adopt all LXCs
-  hosts: all
+  hosts: game_servers,infrastructure
   remote_user: root
   roles:
     - base

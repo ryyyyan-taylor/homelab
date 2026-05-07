@@ -4,3 +4,4 @@ node_exporter_port: 9100
 
 promtail_version: "3.0.0"
 loki_push_url: "http://loki.lab.ryantaylor.tech/loki/api/v1/push"
+base_install_promtail: true

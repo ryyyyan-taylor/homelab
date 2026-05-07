@@ -1,0 +1,12 @@
+---
+# Installs node_exporter on the Proxmox host so Prometheus can scrape it.
+# Promtail is skipped — the host uses router DNS (10.0.1.1) and can't resolve
+# *.lab.ryantaylor.tech. Set its DNS to Pi-hole (10.0.1.160) first if you
+# want logs shipped to Loki.
+- name: Adopt Proxmox host
+  hosts: pve_hosts
+  remote_user: root
+  roles:
+    - role: base
+      vars:
+        base_install_promtail: false

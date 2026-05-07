@@ -59,6 +59,11 @@ spec:
                     requests:
                       storage: 20Gi
             additionalScrapeConfigs:
+              - job_name: proxmox-host-node-exporter
+                static_configs:
+                  - targets: ['10.0.1.135:9100']
+                    labels:
+                      hostname: pve
               - job_name: lxc-node-exporter
                 static_configs:
                   - targets: ['10.0.1.151:9100']

@@ -381,9 +381,13 @@ connectivity.
 - [x] **Loki** (wave 14, single-binary, 10Gi PVC) + **cluster Promtail** (wave 15, DaemonSet) deployed. Cluster pod logs flowing. Grafana has Loki as additional datasource.
 - [x] **LXC Promtails** (network, pi-hole) restarted and shipping to `loki.lab.ryantaylor.tech` after DNS fix (LXC nameserver updated to Pi-hole via `pct set` + Terraform).
 - [x] ArgoCD CM patched to ignore k8s 1.36 StatefulSet defaults (`updateStrategy.type`, `persistentVolumeClaimRetentionPolicy`) — persisted in `kubernetes/bootstrap/argocd/argocd-cm-patch.yaml`.
-- [ ] Prometheus configured to scrape Proxmox host node_exporter.
-- [ ] Uptime Kuma deployed; synthetic checks added for every service in the inventory (cluster + LXC).
-- [ ] Homepage deployed as the landing page at `lab.ryantaylor.tech`; tiles added for every service in the inventory; status widgets wired to Uptime Kuma + Prometheus.
+- [x] Prometheus configured to scrape Proxmox host node_exporter.
+  - Static inventory: `ansible/inventory/static.yml` (group `pve_hosts`, host `pve` at `10.0.1.135`).
+  - Playbook: `ansible/playbooks/adopt-pve-host.yml` — installs node_exporter only (Promtail skipped; PVE host uses router DNS and can't resolve `*.lab.ryantaylor.tech`).
+  - Scrape job `proxmox-host-node-exporter` added to `monitoring/application.yaml`.
+  - **Pre-req**: run `ssh-copy-id -i ~/.ssh/id_ed25519 root@10.0.1.135` then `ansible-playbook playbooks/adopt-pve-host.yml`.
+- [x] Uptime Kuma deployed (`kubernetes/apps/platform/uptime-kuma/`, wave 16, `uptime.lab.ryantaylor.tech`). Synthetic checks to be configured via UI after first deploy.
+- [x] Homepage deployed as the landing page at `lab.ryantaylor.tech` (`kubernetes/apps/platform/homepage/`, wave 17). Tiles for all services. Kubernetes cluster widget. Apex cert issued separately (`homepage/apex-lab-tls`) due to cert-manager v1.16 dual-SAN bug.
 - **Exit criteria**: one URL (`lab.ryantaylor.tech`) shows host + cluster + LXC service health. Alertmanager pushes a phone notification via ntfy when something is actually broken.
 
 **Gotchas logged this phase:**
