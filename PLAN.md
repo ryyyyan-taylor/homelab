@@ -402,6 +402,35 @@ connectivity.
 - Loki 6.x chart omits `updateStrategy.type` and `persistentVolumeClaimRetentionPolicy` in the rendered StatefulSet; k8s 1.36 defaults both. App-level `ignoreDifferences.jqPathExpressions` is ignored unless `resource.customizations.ignoreDifferences.apps_StatefulSet` is set in `argocd-cm`. Fixed in bootstrap.
 - LXC Promtails use router DNS (10.0.1.1) by default — `*.lab.ryantaylor.tech` doesn't resolve until nameserver is set to Pi-hole (10.0.1.160) via `pct set` / Terraform `initialization.dns`.
 
+### Phase 2.5 — Authentik SSO wiring
+
+Authentik is deployed and healthy. This phase wires it into every infrastructure service that supports it. The `authentik-forwardauth` Traefik middleware already exists (verified via `whoami` smoke test) — most services just need an IngressRoute update or an OIDC config block.
+
+| Service | Integration method | Notes |
+|---|---|---|
+| ArgoCD | Native OIDC | Create OAuth2/OIDC provider in Authentik; configure `oidc.config` in `argocd-cm`; map Authentik groups to ArgoCD roles (`role:admin`, `role:readonly`). Disable local `admin` account once confirmed. |
+| Traefik dashboard | Forward-auth middleware | Add `authentik-forwardauth` middleware to the Traefik IngressRoute in `traefik-config`. |
+| Prometheus | Forward-auth middleware | Add `authentik-forwardauth` middleware to Prometheus IngressRoute in `monitoring-config`. |
+| Alertmanager | Forward-auth middleware | Add `authentik-forwardauth` middleware to Alertmanager IngressRoute in `monitoring-config`. |
+| Uptime Kuma | Forward-auth middleware | Add `authentik-forwardauth` middleware to IngressRoute. Uptime Kuma's own login still applies behind it; forward-auth is the outer gate. |
+| Pi-hole admin UI | Authentik proxy provider | Pi-hole runs in LXC CT 160 — create an Authentik proxy provider that forwards to `http://10.0.1.160/admin`; expose via a new IngressRoute at `pihole.lab.ryantaylor.tech`. |
+| Grafana | ✅ Already done | `auth.proxy` + `X-Authentik-Username` header wired in Phase 2. |
+| Homepage | Skip — internal only | Tailscale is the gate; no SSO value on the dashboard itself. |
+| ntfy | Skip — by design | Alertmanager and phone app use ntfy tokens directly; forward-auth would break those flows. |
+
+**Sequencing note:** ArgoCD OIDC requires Authentik to have at least one user and group configured. Set that up in the Authentik UI first, then do ArgoCD. Forward-auth services (Traefik, Prometheus, Alertmanager, Uptime Kuma) are independent of each other and can be done in any order.
+
+**Tasks:**
+- [ ] Create Authentik OAuth2 provider + application for ArgoCD (OIDC, client secret via SOPS)
+- [ ] Patch `argocd-cm` with OIDC config; map groups to roles; verify login; disable local admin
+- [ ] Add `authentik-forwardauth` middleware to Traefik dashboard IngressRoute
+- [ ] Add `authentik-forwardauth` middleware to Prometheus IngressRoute
+- [ ] Add `authentik-forwardauth` middleware to Alertmanager IngressRoute
+- [ ] Add `authentik-forwardauth` middleware to Uptime Kuma IngressRoute
+- [ ] Create Authentik proxy provider for Pi-hole; add IngressRoute at `pihole.lab.ryantaylor.tech`
+- [ ] Add `pihole.lab.ryantaylor.tech` tile to Homepage configmap (replacing the direct IP link)
+- **Exit criteria:** every admin UI requires an Authentik login. ArgoCD local `admin` account disabled. No service is reachable via `*.lab.ryantaylor.tech` without authenticating.
+
 ### Phase 3 — Self-service ("1-click")
 - [ ] **Self-hosted GH Actions runner** provisioned as a small LXC on the homelab. Polls GitHub for jobs; all connections outbound — no inbound ports or public exposure. Hosted runners continue handling CI jobs that don't need homelab access (lint, validate, plan).
 - [ ] GitHub Actions `workflow_dispatch` workflows for: "create dev VM," "create LXC," "deploy app from template." These run on the self-hosted runner so they can reach the Proxmox API and LXC targets directly.
