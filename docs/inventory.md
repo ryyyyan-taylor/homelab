@@ -188,6 +188,9 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | LXC scrape targets | 10.0.1.151–153, 160–161 on port 9100 (node_exporter) |
 | Disabled monitors | kubeScheduler, kubeControllerManager, kubeEtcd, kubeProxy (Talos doesn't expose these) |
 | Known gotcha | `ServerSideApply=true` required — chart installs many CRDs that would conflict with ArgoCD's default 3-way merge |
+| Known gotcha | `monitoring` namespace must have `pod-security.kubernetes.io/enforce: privileged` for node-exporter (hostNetwork/hostPID/hostPath) |
+| Known gotcha | local-path PVCs + subPath bind mounts: kubelet's fsGroup chown does NOT propagate through the subPath. Init container must mount with the same `subPath` and `mountPath` as the main container, then chown there |
+| Known gotcha | Control plane VM must NOT balloon — when ballooned to floor (2 GB) under kube-prometheus-stack load, kube-apiserver OOMs in a Go runtime crash loop. Set `dedicated = 4096` (no `floating`) in Terraform |
 
 ### ntfy
 
