@@ -41,6 +41,8 @@ spec:
             enabled: true
             storageClass: local-path
             size: 10Gi
+            # Disable auto-delete PVC policy — live state was Retain; keep local-path PVC
+            enableStatefulSetAutoDeletePVC: false
 
         # Disable scale-out components (not needed for single binary)
         read:
@@ -86,6 +88,7 @@ spec:
       kind: StatefulSet
       jqPathExpressions:
         - .spec.updateStrategy.rollingUpdate.partition
+        - .spec.updateStrategy.type
         - .spec.persistentVolumeClaimRetentionPolicy
         - .status.terminatingReplicas
   syncPolicy:
