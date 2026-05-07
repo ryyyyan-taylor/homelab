@@ -83,6 +83,22 @@ spec:
             enabled: false
           alertmanagerSpec:
             configSecret: alertmanager-config
+            # Same local-path + subPath fsGroup quirk as Prometheus
+            initContainers:
+              - name: init-chown-data
+                image: busybox:1.37.0
+                command:
+                  - sh
+                  - -c
+                  - chown -R 1000:2000 /alertmanager && chmod -R 1777 /alertmanager
+                volumeMounts:
+                  - name: alertmanager-monitoring-alertmanager-db
+                    mountPath: /alertmanager
+                    subPath: alertmanager-db
+                securityContext:
+                  runAsUser: 0
+                  runAsNonRoot: false
+                  allowPrivilegeEscalation: true
             storage:
               volumeClaimTemplate:
                 spec:
