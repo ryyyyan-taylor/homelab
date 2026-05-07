@@ -2,490 +2,161 @@
 
 A portfolio-grade homelab built as a coherent platform: declarative, observable, self-service. The pitch is **"my homelab is a Kubernetes platform team in miniature."**
 
-Status: **planning**. This document is the source of truth for scope and sequencing; it will be edited as decisions evolve.
-
-**At a glance:**
-
-| Phase | Theme | Gating | Effort estimate |
-|---|---|---|---|
-| 0 | Foundation: repo skeleton, SOPS, Tailscale, PBS | none — actionable now | 1 weekend |
-| 0.5 | Adopt 4 existing LXCs into Ansible + Terraform + PBS | Phase 0 | ~2 days (½ day per LXC) |
-| 1 | Talos cluster + Argo CD + Traefik + cert-manager + Authentik | ~~1 TB drive installed~~ ✓ | 1–2 weekends |
-| 2 | Observability + dashboard + alerts | Phase 1 | 1 weekend |
-| 3 | Self-service via GH Actions + golden images | Phase 2 | 2 weekends |
-| 4 | Resilience: DR runbook + drills | Phase 3 | 1 weekend |
-| 5 | Polish: ADRs, README rewrite, diagrams | Phase 4 | 1 weekend |
-
-Phases 0 and 0.5 are unblocked today. **Phase 1 is also now unblocked** — the 1 TB drive has arrived and is configured as LVM thin pool `hdd` on VG `hdd`.
+Status: **mostly built, feature backlog active**. Core infrastructure is deployed and healthy. This document tracks future work and dependency notes.
 
 ---
 
-## Goals
+## Current state
 
-1. **Visible** — one place to see what's running, what's healthy, and what's broken.
-2. **Declarative** — the running state matches a git repo. Rebuilding from bare metal is a documented procedure, not tribal knowledge.
-3. **Self-service** — provisioning a new VM, LXC, or app is a button or a PR, not a sequence of CLI commands.
-4. **Defensible as a portfolio piece** — every choice has a "why," and the README explains it.
+**Running and stable:**
+- ✅ Talos cluster (3 nodes, K8s v1.36.0)
+- ✅ ArgoCD (GitOps, KSOPS secrets)
+- ✅ Traefik + cert-manager (TLS, ingress)
+- ✅ Authentik (SSO, deployed but not yet wired into everything)
+- ✅ Observability: Prometheus + Grafana + Alertmanager + Loki + Promtail
+- ✅ Notifications: ntfy → phone
+- ✅ Dashboard: Homepage + Uptime Kuma
+- ✅ All 5 LXCs adopted into Ansible/Terraform
+- ✅ Proxmox host metrics flowing to Prometheus
 
-## Non-goals
-
-- Full HA across multiple physical hosts (single Proxmox host is fine).
-- Production-grade security posture. Hardening is an explicit phase, not the default.
-- Reinventing tools that already exist. Prefer well-known OSS over custom.
-- **Forcing every existing workload onto Kubernetes.** Hybrid is the design (see below).
-
-## Hybrid by design: LXCs and K8s coexist
-
-Existing LXCs stay LXCs unless there's a concrete reason to move them. Kubernetes earns its keep for *new* workloads or for services that benefit from what the cluster provides (Authentik SSO, automated TLS, GitOps reconciliation, ingress). The platform treats both as first-class:
-
-| Concern | LXC / VM path | K8s path |
-|---|---|---|
-| Provisioning | Terraform (proxmox provider) | Terraform (Talos VMs) + Argo CD |
-| Configuration | Ansible roles | Helm + Kustomize via Argo CD |
-| Secrets | SOPS + age (decrypted at deploy) | SOPS + age via Argo CD + KSOPS plugin |
-| Metrics | node_exporter scraped by cluster Prometheus | kube-prometheus-stack |
-| Logs | Promtail on the LXC → Loki | Promtail DaemonSet → Loki |
-| Backups | Proxmox Backup Server (local) | PBS for Talos VMs + Longhorn snapshots for PVs |
-| Visibility | Homepage tile + Uptime Kuma check | same |
-| Access | Authentik via Traefik forward-auth (LXC behind cluster ingress) | Authentik proxy provider |
-
-### What actually runs on the K8s cluster
-
-The cluster is the homelab's **management, auth, and observability plane** — not a data path for existing workloads. Runtime traffic to game servers and DNS continues to hit those LXCs directly. What flows through the cluster is admin UIs (fronted by Traefik + Authentik), metrics (Prometheus scrapes LXC node_exporters), logs (Promtail on LXC → Loki), and dashboards (Homepage, Grafana, Uptime Kuma).
-
-It runs two things:
-
-**1. The platform tier** — services that make the rest of the homelab nicer:
-- Traefik + cert-manager (TLS for cluster *and* LXC services via forward-auth upstreams)
-- Authentik (single sign-on in front of everything, including LXC web UIs)
-- kube-prometheus-stack + Loki + Promtail (monitors cluster *and* LXCs via node_exporter)
-- Homepage + Uptime Kuma (the dashboard, with tiles for both worlds)
-- ntfy (self-hosted push notifications, target for Alertmanager)
-- Argo CD (the GitOps engine itself)
-
-This is the answer to "why a cluster?" — it's the substrate that ties LXCs and future workloads together under one observable, authenticated, declaratively-managed roof.
-
-**2. New web apps that benefit from the platform tier.** Candidates (none mandatory; add as desired):
-- Vaultwarden, Paperless-ngx, Immich, Linkding, Miniflux, code-server, Gitea/Forgejo, n8n, Outline, Vikunja.
-- These all have maintained Helm charts and gain real value from SSO + TLS + GitOps.
-
-**What does *not* belong on the cluster** (current state):
-- Game servers (Terraria, Factorio, Minecraft) — stateful, raw ports, no SSO/ingress benefit, faster as LXCs.
-- Pi-hole — needs host networking on :53.
-- Anything else that already works and doesn't pass the migration rubric below.
-
-**Honest framing:** part of the cluster's value is "a place to learn and run new things." That's a legitimate portfolio answer — building and operating the platform tier *is* the demonstration. It's only cosplay if we force-migrate workloads that don't benefit.
-
-### Considered and rejected: skip K8s entirely
-
-The platform tier could have run as LXCs / Docker Compose on the host. Simpler operationally, but the choice was made to use K8s for the GitOps reconciliation story and the portfolio narrative. Recorded here so the rejection is intentional, not an oversight.
-
-### Migration rubric — when to move an LXC into K8s
-
-**Move it** if any apply:
-- Would clearly benefit from SSO / automated TLS / ingress already built in K8s.
-- Has a maintained Helm chart that matches or beats current config.
-- You want declarative reconciliation for it (Argo CD drift correction is genuine value).
-
-**Leave it** if any apply:
-- Needs host networking, raw devices, or kernel features (Pi-hole on :53, Tailscale subnet router, hardware-accelerated media transcode).
-- Stateful with no good chart and no appetite for writing one.
-- It works and there's no portfolio or operational reason to touch it. "If it ain't broke" counts.
-
-### Adopting existing LXCs into the repo (no migration, just management)
-
-This is the practical first step for what's already running. For each existing LXC:
-1. Write an Ansible role that describes its *current* state. First run should be a no-op (idempotent).
-2. Import it into Terraform state (`terraform import`) so the repo owns its lifecycle.
-3. Add node_exporter + Promtail. It now appears in Grafana / Loki.
-4. Add a Homepage tile and Uptime Kuma check. It's now on the dashboard.
-5. Confirm PBS is backing it up.
-
-This is bounded work — one role per LXC, mostly mechanical — and it's the bridge between "stuff I have running" and "platform I can describe in a portfolio."
-
-### Existing LXC inventory
-
-| CT ID | LXC | Purpose | Verdict | Notes |
-|---|---|---|---|---|
-| 151 | Corekeeper server | Game server | stay LXC | Stateful world data, raw TCP port; no SSO/ingress benefit |
-| 152 | Minecraft server | Game server | stay LXC | World persistence, raw TCP, mods/plugins easier on bare LXC |
-| 153 | Terraria server | Game server | stay LXC | Stateful world data, raw TCP port; no SSO/ingress benefit |
-| 160 | Pi-hole | DNS + ad-blocking | stay LXC | Host networking on :53; surfaced via Homepage tile + Authentik proxy for the admin UI |
-| 161 | network | Tailscale subnet router | stay LXC (repurposed) | Privileged LXC; advertises LAN subnet so all LXCs reachable via Tailscale without installing it on each; replaces jump-host role |
+**Working on or planned:**
+- [ ] SSO wiring (Phase 2.5, below)
+- [ ] Self-service provisioning (Phase 3)
+- [ ] DR runbook + backup validation
+- [ ] Documentation polish
 
 ---
 
-## Architecture (target state)
+## Architecture & design decisions
 
-```
-┌──────────────────────── Proxmox host ─────────────────────────┐
-│                                                                │
-│  ┌─ Talos cluster (3 VMs: 1 CP × 4 GB + 2 worker × 6 GB) ─┐  │
-│  │  ballooning enabled; game LXCs stopped when inactive   │  │
-│  │                                                          │  │
-│  │  Platform: Argo CD • Traefik • cert-manager • Authentik │  │
-│  │  Observability: Prometheus • Grafana • Loki • Alertmgr  │  │
-│  │  Notifications: ntfy        Storage: Longhorn           │  │
-│  │  Secrets: SOPS+age (KSOPS)                              │  │
-│  │  Apps: Homepage • Uptime Kuma • <user apps>             │  │
-│  │                                                          │  │
-│  │  All services exposed at *.lab.ryantaylor.tech (LE)     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-│  ┌─ LXC / VMs (non-K8s workloads) ─────────────────────────┐  │
-│  │  Pi-hole • Terraria • Factorio • Minecraft • dev VMs    │  │
-│  │  (admin UIs fronted by cluster Traefik + Authentik)     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-│  Proxmox Backup Server (separate VM, local-only)              │
-└────────────────────────────────────────────────────────────────┘
-         ▲
-         │ Terraform (Proxmox provider) + Ansible + Packer
-         │
-   ┌─────┴──────┐
-   │ Git repo   │ ← GitHub Actions builds images, opens PRs,
-   │ (this one) │   triggers Terraform; Argo CD reconciles cluster
-   └────────────┘
-```
+See `docs/inventory.md` for service details, hardware specs, and IP plan.
+
+### Hybrid by design
+
+- **K8s runs the platform tier**: Traefik + Authentik + observability + GitOps.
+- **LXCs stay LXCs**: game servers, Pi-hole, Tailscale subnet router (see migration rubric in full PLAN for why).
+- Prometheus scrapes both K8s and LXCs; Loki aggregates both.
+
+### Key constraints
+
+- **24 GB RAM** is the binding constraint. Cluster is 1 CP (4 GB) + 2 workers (6 GB each). Game LXCs must be stopped when idle to stay within budget. Memory ballooning on Talos VMs handles occasional peaks.
+- **Single Proxmox host** means no HA; Longhorn replication is per-node only. Good for portfolio, not production.
+- **Tailscale for remote access** — Cloudflare Tunnels explicitly rejected.
+- **Local PBS backups only** — off-site backups out of scope.
 
 ---
 
-## Components & choices
+## Features — ordered by dependency
 
-| Layer | Choice | Why |
+### Phase 2.5: Authentik SSO wiring
+
+**Status:** Authentik is deployed and healthy. Grafana is already wired (auth.proxy). Everything else needs updates.
+
+**Prerequisite:** at least one Authentik user + group must exist (configure in Authentik UI first).
+
+| Service | Method | Notes |
 |---|---|---|
-| Hypervisor | Proxmox VE | Already running; great API; LXC + KVM in one box |
-| Cluster OS | Talos Linux | Immutable, API-driven, no SSH — modern story |
-| Cluster shape | 3-node Talos (1 CP × 4 GB + 2 workers × 6 GB) | Feasible on 24 GB because game LXCs stop fully when inactive; ballooning absorbs concurrent peaks |
-| GitOps | Argo CD | Recognizable UI, strong industry presence, recruiter-friendly portfolio signal |
-| Ingress | Traefik | Native CRDs, dashboard, easy with cert-manager |
-| TLS | cert-manager + Let's Encrypt DNS-01 (Cloudflare) | Real wildcard certs for `*.lab.ryantaylor.tech`, services stay internal |
-| DNS / domain | `ryantaylor.tech` on Cloudflare; `lab.` subdomain for homelab services | Already owned; great cert-manager support |
-| Identity / SSO | Authentik | One login in front of everything (proxy provider for LXC + cluster apps) |
-| Storage | Longhorn | Simple, web UI, snapshot support |
-| Secrets in git | SOPS + age (decrypted by Argo via KSOPS plugin) | Idiomatic, no extra service to run; Ansible reads the same encrypted files |
-| Metrics | kube-prometheus-stack | Prometheus + Grafana + Alertmanager bundled |
-| Logs | Loki + Promtail | Pairs with Grafana |
-| Synthetic checks | Uptime Kuma | Black-box "is the URL up" view |
-| Service tiles | Homepage | Human-facing landing page with status widgets |
-| Local DNS | Pi-hole (existing LXC) | Already running; split-horizon for `*.lab.ryantaylor.tech` |
-| Backups (VMs/LXC) | Proxmox Backup Server, local-only | Fast restore on local hardware; off-site explicitly out of scope |
-| Backups (K8s PVs) | Longhorn snapshots + PBS on Talos VMs | Stay on the same host; no off-site target |
-| Remote access | Tailscale | Free, MagicDNS, no inbound ports — replaces a previously failed Cloudflare Tunnel attempt |
-| Notifications | ntfy (self-hosted in cluster) | Push-to-phone, also reusable for any future automation |
-| Provisioning | Terraform (telmate/proxmox) + Packer + Ansible | IaC for VMs/LXC, golden images, post-boot config |
-| CI | GitHub Actions (hosted runners) | Lint, validate, `terraform plan` output on PRs — no homelab access needed |
-| CD (Phases 0–2) | Local machine via Tailscale | Solo operator; `terraform apply` and `ansible-playbook` run directly from laptop |
-| CD (Phase 3+) | Self-hosted GH Actions runner (small LXC) | Enables `workflow_dispatch` self-service without being at a laptop; outbound-only to GitHub |
-| Self-service | Phase 3: GH Actions `workflow_dispatch` from Homepage tiles | Phase 5 stretch: custom self-service portal |
-
-### Decisions locked
-
-- Domain: `ryantaylor.tech` (owned), services at `*.lab.ryantaylor.tech`.
-- DNS provider: Cloudflare (already in use).
-- TLS: cert-manager + Let's Encrypt DNS-01, single wildcard.
-- Secrets: SOPS + age, decrypted by Argo CD (KSOPS) and Ansible from the same encrypted files.
-- GitOps: Argo CD.
-- Remote access: Tailscale (Cloudflare Tunnels explicitly rejected based on prior frustration).
-- SSO: Authentik proxy provider, fronted by Traefik for both cluster and LXC services.
-- CI: GitHub Actions hosted runners.
-- Backups: PBS local-only; off-site explicitly out of scope.
-- Notifications: ntfy self-hosted in cluster.
-- Phase 3 self-service: GH Actions `workflow_dispatch` triggered from Homepage tiles.
-- Network: flat — single `vmbr0` bridge, no VLANs.
-- Naming: `<service>.lab.ryantaylor.tech`; apex `lab.ryantaylor.tech` resolves to Homepage as the dashboard landing page.
-- LXC inventory source: manual configuration only — Phase 0.5 Ansible roles are reverse-engineered by hand (~½ day per LXC).
-- Cluster shape: **3-node Talos from day one** (1 control plane at 4 GB + 2 workers at 6 GB each). Feasible because game LXCs are fully stopped when inactive, freeing their RAM allocation. Proxmox memory ballooning enabled on the Talos VMs so concurrent peaks (cluster busy + all game servers running) don't OOM.
-- Operational pattern: **game LXCs are started on demand, stopped when not in use.** This is load-bearing for the RAM budget — if game LXCs end up left running idle, the cluster has to size down.
-
-### Hardware
-
-| Resource | Current | Notes |
-|---|---|---|
-| CPU | Intel i7-4790 (4c / 8t) | Fine for homelab; ~1.5x oversubscription on Talos VMs is normal |
-| RAM | 24 GB | **The binding constraint.** Drives 3-node sizing (4+6+6) and dependence on game-LXC stop-on-idle pattern |
-| GPU | GTX 1650 | Not on critical path; future passthrough opportunity (Jellyfin transcode, small ML) |
-| Storage | 200 GB SSD (`data` thin pool, VG `pve`, ~58 GB thin provisioned) + **1 TB HDD (`hdd` thin pool, VG `hdd`, ~980 GB)** | 1 TB configured as LVM thin; all existing LXCs on `data`; Talos VMs will use `hdd` |
-
-**RAM budget at current scale (game LXCs fully stopped when inactive):**
-
-| Workload | Steady state | All game servers active |
-|---|---|---|
-| Proxmox + ZFS ARC | 3 GB | 3 GB |
-| Pi-hole | 0.5 GB | 0.5 GB |
-| Minecraft LXC | 0 (stopped) | ~3 GB |
-| Factorio LXC | 0 (stopped) | ~2 GB |
-| Terraria LXC | 0 (stopped) | ~1 GB |
-| Talos CP VM (4 GB allocated) | ~2.5 GB used | ~3 GB used |
-| Talos worker 1 (6 GB allocated) | ~4 GB used | ~5 GB used |
-| Talos worker 2 (6 GB allocated) | ~4 GB used | ~5 GB used |
-| **Total used** | **~14 GB** of 24 GB | **~22.5 GB** of 24 GB |
-| **Total allocated** (sum of caps) | 19.5 GB | 25.5 GB |
-
-Steady state is comfortable. The "all game servers active" peak exceeds total allocation by 1.5 GB but **fits within real usage thanks to Proxmox memory ballooning** — Talos VMs return unused allocation to the host under pressure. Concurrent peaks are infrequent by design (game servers are started on demand).
-
-If RAM is later upgraded, sizing increases per VM rather than adding nodes — 3 nodes is the right shape for this cluster regardless.
-
-**Public exposure (documented, not blanket-policy):**
-
-| LXC | Internet-exposed | Reason |
-|---|---|---|
-| Minecraft | TCP 25565 | Friends play |
-| Terraria | TCP 7777 | Friends play |
-| Corekeeper | TBD | Friends play |
-| Everything else | Tailscale-only | Default |
-
-Game-server LXCs sit *slightly outside* the SSO trust boundary — they're internet-reachable on their game ports. SSO/TLS via cluster Traefik covers their **admin/web UIs** when present, not the game protocols themselves. Implication: keep them patched; don't assume Authentik is in the request path for game traffic.
-
----
-
-## Phases
-
-Each phase is a shippable milestone with a tagged commit and a README section. Don't skip ahead — earlier phases unblock later ones.
-
-### Phase 0 — Foundation (the boring, load-bearing stuff)
-- [x] Proxmox host inventoried, networking documented (flat `vmbr0`, IP plan).
-- [x] Repo structure scaffolded: `terraform/`, `ansible/`, `packer/`, `kubernetes/` (Argo root), `docs/`.
-- [x] SOPS + age set up; age key backed up *outside* the repo (password manager + offline copy); first secret encrypted and decryptable in CI.
-- [x] Tailscale installed in CT 161 (network LXC), configured as subnet router advertising the LAN subnet. Proxmox host stays clean.
-- **Exit criteria**: `terraform apply` of an empty change is a clean no-op; SOPS roundtrip works in CI.
-
-### Phase 0.5 — Adopt existing LXCs
-Repurpose CT 161 (admin → network): strip it back, install Tailscale, configure as subnet router. Self-hosted GH Actions runner deferred to Phase 3.
-
-**Terraform — done:**
-- [x] `bpg/proxmox` provider configured (`terraform/versions.tf`, `providers.tf`, `variables.tf`)
-- [x] All 5 LXCs (151–153, 160, 161) imported into state via `terraform/imports.tf` + `lxcs.tf`
-- [x] CT 161 renamed `admin` → `network` via Terraform
-- [x] `terraform plan` is clean (no changes)
-
-**Ansible — done:**
-- [x] `community.proxmox` dynamic inventory configured (`ansible/inventory/proxmox.yml`)
-- [x] Groups: `game_servers` (151–153), `infrastructure` (160–161)
-- [x] Inventory resolves all 5 LXCs with correct `ansible_host` IPs
-
-**SSH bootstrap — done:**
-- [x] ed25519 key generated on ryan-desktop
-- [x] Key pushed to all 5 LXCs via `pct exec` on Proxmox host
-- [x] `ansible infrastructure -m ping` green; game servers verified and stopped
-
-**Next: Ansible roles (after SSH bootstrap)**
-- [x] `base` role: node_exporter + Promtail on all LXCs (idle until Phase 2 scrapes them)
-- [x] `pihole` role: describe current pi-hole state, idempotent
-- [x] `minecraft` role: describe current minecraft state, idempotent
-- [x] `terraria` role: describe current terraria state, idempotent
-- [x] `corekeeper` role: describe current corekeeper state, idempotent
-- [x] `network` role: describe current Tailscale subnet router state, idempotent
-- [x] Playbook `adopt-lxcs.yml` wiring roles to groups, `--check` run is a no-op
-
-Homepage tiles and Uptime Kuma checks are deferred to **Phase 2** — they need services that don't exist yet.
-
-- **Exit criteria**: every running LXC is described by code in this repo. Re-running Ansible is a no-op.
-
-### Phase 1 — Platform (Talos + GitOps + ingress + TLS)
-- [x] **Prerequisite: 1 TB drive installed** — drive is online as LVM thin pool `hdd` (VG `hdd`, ~980 GB). Talos VMs will be provisioned onto `hdd`; existing LXCs stay on `data`.
-- [x] Talos metal-amd64 ISO uploaded to Proxmox local storage (`local:iso/talos-metal-amd64.iso`).
-- [x] Terraform provisions **3 Talos VMs** (`terraform/talos-vms.tf`): talos-cp (VM 200, 2 vCPU / 4 GB / 40 GB) + talos-worker-1 (VM 201, 4 vCPU / 6 GB / 60 GB) + talos-worker-2 (VM 202, 4 vCPU / 6 GB / 60 GB). All on `hdd`, ballooning enabled, `on_boot = true`.
-
-**Talos bootstrap — done:**
-- [x] `talosctl gen secrets` → SOPS-encrypted to `kubernetes/talos/secrets.sops.yaml`
-- [x] Machine configs generated from secrets + per-node patches (`kubernetes/talos/patches/`)
-- [x] Configs applied; all 3 VMs installed Talos to disk and rebooted
-- [x] `talosctl bootstrap` run against control plane
-- [x] Static IPs confirmed: CP `10.0.1.200`, worker-1 `10.0.1.201`, worker-2 `10.0.1.202`
-- [x] `kubectl get nodes` shows 3 nodes Ready (Talos v1.13.0, K8s v1.36.0)
-- [x] kubeconfig merged into `~/.kube/config`; talosconfig at `kubernetes/talos/talosconfig`
-
-**Notes for future rebuilds:**
-- NIC is `ens18` (not `eth0`) — patches already reflect this
-- Regenerate machine configs: `sops -d kubernetes/talos/secrets.sops.yaml > /tmp/s.yaml && talosctl gen config talos-homelab https://10.0.1.200:6443 --with-secrets /tmp/s.yaml -o kubernetes/talos/ -f && rm /tmp/s.yaml`, then re-apply patches
-
-**Argo CD bootstrap — ready to run:**
-- Bootstrap manifests: `kubernetes/bootstrap/argocd/` (Argo v2.14.2 + KSOPS v4.2.3 CMP sidecar)
-- Root Application: `kubernetes/bootstrap/root-app.yaml` (watches `kubernetes/apps/`, app-of-apps)
-
-**Bootstrap sequence (two manual pre-steps, then Argo takes over):**
-```bash
-# 1. Namespace + age key secret (must exist before argocd-repo-server starts)
-kubectl create namespace argocd
-kubectl create secret generic ksops-age-key \
-  --from-file=keys.txt=$HOME/.config/sops/age/keys.txt \
-  -n argocd
-
-# 2. Install Argo CD with KSOPS CMP sidecar
-kubectl apply -k kubernetes/bootstrap/argocd/
-
-# 3. Wait for repo-server to be ready
-kubectl -n argocd rollout status deploy/argocd-repo-server
-
-# 4. Apply root Application — Argo takes over from here
-kubectl apply -f kubernetes/bootstrap/root-app.yaml
-```
-- If repo is private: add a GitHub deploy token via `argocd repo add` or Argo CD UI before step 4.
-
-**Argo CD bootstrap — done:**
-- [x] Bootstrap Argo CD pointing at this repo (app-of-apps pattern).
-- [x] KSOPS v4.2.3 CMP sidecar configured on repo-server; age key delivered as `ksops-age-key` secret.
-- [x] Root Application synced (`kubernetes/apps/`); `root` app shows Synced/Healthy.
-
-**Gotcha — DHCP IP accumulation on Talos nodes (fixed, documented for rebuilds):**
-Talos nodes briefly get DHCP IPs during boot before static config applies. These accumulate in
-Talos's in-memory address tracker and the kubelet bakes the wrong IP into the `kubernetes` service
-endpoint lease. Fix: `machine.kubelet.nodeIP.validSubnets` is now set in all three patches to pin
-the kubelet's node-ip to the static IP. All nodes were rebooted once after the patch to clear
-accumulated addresses. On rebuild, apply configs and reboot all nodes before troubleshooting
-connectivity.
-
-**cert-manager — done:**
-- [x] Two Argo Apps: `cert-manager` (Helm, wave 0) + `cert-manager-config` (Kustomize+KSOPS, wave 1).
-- [x] Cloudflare API token SOPS-encrypted at `kubernetes/apps/platform/cert-manager-config/cloudflare-token.sops.yaml`.
-- [x] `letsencrypt-staging` and `letsencrypt-prod` ClusterIssuers — both Ready.
-- [x] `dns01RecursiveNameservers: 1.1.1.1:53,8.8.8.8:53` set to bypass Pi-hole for ACME checks.
-
-**MetalLB — done:**
-- [x] Two Argo Apps: `metallb` (Helm v0.14.8, wave 2) + `metallb-config` (Kustomize, wave 3).
-- [x] L2 mode, single IP pool: `10.0.1.210/32` (Traefik VIP).
-- [x] `metallb-system` namespace labelled `privileged` (required for speaker — NET_ADMIN/NET_RAW/hostNetwork).
-- [x] All 3 speaker pods Running on all nodes; ARP announcements working.
-
-**Traefik — done:**
-- [x] Two Argo Apps: `traefik` (Helm v34.4.0, wave 4) + `traefik-config` (Kustomize, wave 5).
-- [x] LoadBalancer service → EXTERNAL-IP `10.0.1.210`; HTTP→HTTPS redirect via `redirections` (v34 syntax).
-- [x] Wildcard cert `*.lab.ryantaylor.tech` issued by `letsencrypt-prod`; stored as `wildcard-lab-tls` in `traefik` namespace.
-- [x] `TLSStore/default` set to `wildcard-lab-tls` — all IngressRoutes get the wildcard automatically with `tls: {}`.
-- [x] `traefik.lab.ryantaylor.tech` reachable with valid prod cert.
-- [x] Pi-hole v6 wildcard DNS: `misc.dnsmasq_lines = ["address=/.lab.ryantaylor.tech/10.0.1.210"]`.
-
-**Gotchas logged this session:**
-- cert-manager v1.16 Cloudflare cleanup bug: zone ID is empty in DELETE call when cert covers two SANs
-  that share the same `_acme-challenge` DNS name. Workaround: wildcard cert covers only `*.lab.ryantaylor.tech`
-  (no apex SAN). Apex `lab.ryantaylor.tech` will get its own cert when Homepage is deployed.
-  If re-issuance gets stuck: `kubectl -n traefik delete certificaterequest <name>` unblocks it.
-- Pi-hole v6 dropped `/etc/dnsmasq.d/` support. Wildcard DNS goes in:
-  `pihole-FTL --config misc.dnsmasq_lines '["address=/.lab.ryantaylor.tech/10.0.1.210"]'`
-- Traefik Helm chart v34 removed `ports.web.redirectTo`; new syntax is `ports.web.redirections.entryPoint`.
-- MetalLB speaker needs `pod-security.kubernetes.io/enforce: privileged` on its namespace in Talos.
-
-**Next session — start here:**
-- [ ] Authentik via Argo CD (`kubernetes/apps/platform/authentik/`).
-  - Helm chart from `https://charts.goauthentik.io`, chart `authentik`.
-  - Needs PostgreSQL + Redis (bundled in chart or separate).
-  - SOPS-encrypted secret for Authentik secret key + DB password.
-  - IngressRoute at `authentik.lab.ryantaylor.tech` with `tls: {}`.
-- [ ] `whoami` smoke-test app behind Authentik forward-auth middleware.
-- **Exit criteria**: I can `kubectl delete` the whole cluster, re-run Terraform + Argo bootstrap, and the trivial app comes back without manual steps (one documented manual step: providing the age key + Cloudflare API token to the fresh cluster).
-
-### Phase 2 — Visibility (the dashboard story)
-- [x] **ntfy** deployed (wave 10); Alertmanager wired to `homelab-alerts` topic; phone subscribed via token.
-- [x] **kube-prometheus-stack** (wave 11–12): Prometheus (30d retention, 20Gi PVC) + Grafana (SSO via Authentik auth.proxy) + Alertmanager (config from SOPS secret). LXC node_exporters scraped. Alert pipeline confirmed: Prometheus → Alertmanager → ntfy.
-- [x] **Loki** (wave 14, single-binary, 10Gi PVC) + **cluster Promtail** (wave 15, DaemonSet) deployed. Cluster pod logs flowing. Grafana has Loki as additional datasource.
-- [x] **LXC Promtails** (network, pi-hole) restarted and shipping to `loki.lab.ryantaylor.tech` after DNS fix (LXC nameserver updated to Pi-hole via `pct set` + Terraform).
-- [x] ArgoCD CM patched to ignore k8s 1.36 StatefulSet defaults (`updateStrategy.type`, `persistentVolumeClaimRetentionPolicy`) — persisted in `kubernetes/bootstrap/argocd/argocd-cm-patch.yaml`.
-- [x] Prometheus configured to scrape Proxmox host node_exporter.
-  - Static inventory: `ansible/inventory/static.yml` (group `pve_hosts`, host `pve` at `10.0.1.135`).
-  - Playbook: `ansible/playbooks/adopt-pve-host.yml` — installs node_exporter only (Promtail skipped; PVE host uses router DNS and can't resolve `*.lab.ryantaylor.tech`).
-  - Scrape job `proxmox-host-node-exporter` added to `monitoring/application.yaml`.
-  - **Pre-req**: run `ssh-copy-id -i ~/.ssh/id_ed25519 root@10.0.1.135` then `ansible-playbook playbooks/adopt-pve-host.yml`.
-- [x] Uptime Kuma deployed (`kubernetes/apps/platform/uptime-kuma/`, wave 16, `uptime.lab.ryantaylor.tech`). Synthetic checks to be configured via UI after first deploy.
-- [x] Homepage deployed as the landing page at `lab.ryantaylor.tech` (`kubernetes/apps/platform/homepage/`, wave 17). Tiles for all services. Kubernetes cluster widget. Apex cert issued separately (`homepage/apex-lab-tls`) due to cert-manager v1.16 dual-SAN bug.
-- **Exit criteria**: one URL (`lab.ryantaylor.tech`) shows host + cluster + LXC service health. Alertmanager pushes a phone notification via ntfy when something is actually broken.
-- **Status**: ✅ Phase 2 complete. All services reachable. Uptime Kuma monitors to be configured via UI.
-
-**Gotchas logged this phase (continued):**
-- Homepage mounts config via ConfigMap. Mounting the whole directory at `/app/config` makes it read-only; Homepage tries to `mkdir /app/config/logs` on startup and crashes (ENOENT). Fix: mount each config file individually with `subPath` so `/app/config` itself remains a writable container directory.
-
-**Gotchas logged this phase (original):**
-- local-path PVCs + subPath bind mounts: kubelet fsGroup chown does NOT propagate through the subPath. Fix: init container must mount with the same `subPath` as the main container and chown there (affects Prometheus, Alertmanager).
-- Grafana `userKey: ""` does not skip the secret lookup — must provide a real key. Added `grafana-admin-user: admin` to SOPS secret.
-- kube-prometheus-stack `fullnameOverride: monitoring` strips the chart name from service names — IngressRoutes must use `monitoring-prometheus`, `monitoring-alertmanager`, not `monitoring-kube-prometheus-stack-*`.
-- Control plane VM must NOT balloon — kube-apiserver OOMs under CRD load when ballooned to floor. Set `dedicated = 6144` (no `floating`) in Terraform.
-- Loki 6.x chart omits `updateStrategy.type` and `persistentVolumeClaimRetentionPolicy` in the rendered StatefulSet; k8s 1.36 defaults both. App-level `ignoreDifferences.jqPathExpressions` is ignored unless `resource.customizations.ignoreDifferences.apps_StatefulSet` is set in `argocd-cm`. Fixed in bootstrap.
-- LXC Promtails use router DNS (10.0.1.1) by default — `*.lab.ryantaylor.tech` doesn't resolve until nameserver is set to Pi-hole (10.0.1.160) via `pct set` / Terraform `initialization.dns`.
-
-### Phase 2.5 — Authentik SSO wiring
-
-Authentik is deployed and healthy. This phase wires it into every infrastructure service that supports it. The `authentik-forwardauth` Traefik middleware already exists (verified via `whoami` smoke test) — most services just need an IngressRoute update or an OIDC config block.
-
-| Service | Integration method | Notes |
-|---|---|---|
-| ArgoCD | Native OIDC | Create OAuth2/OIDC provider in Authentik; configure `oidc.config` in `argocd-cm`; map Authentik groups to ArgoCD roles (`role:admin`, `role:readonly`). Disable local `admin` account once confirmed. |
-| Traefik dashboard | Forward-auth middleware | Add `authentik-forwardauth` middleware to the Traefik IngressRoute in `traefik-config`. |
-| Prometheus | Forward-auth middleware | Add `authentik-forwardauth` middleware to Prometheus IngressRoute in `monitoring-config`. |
-| Alertmanager | Forward-auth middleware | Add `authentik-forwardauth` middleware to Alertmanager IngressRoute in `monitoring-config`. |
-| Uptime Kuma | Forward-auth middleware | Add `authentik-forwardauth` middleware to IngressRoute. Uptime Kuma's own login still applies behind it; forward-auth is the outer gate. |
-| Pi-hole admin UI | Authentik proxy provider | Pi-hole runs in LXC CT 160 — create an Authentik proxy provider that forwards to `http://10.0.1.160/admin`; expose via a new IngressRoute at `pihole.lab.ryantaylor.tech`. |
-| Grafana | ✅ Already done | `auth.proxy` + `X-Authentik-Username` header wired in Phase 2. |
-| Homepage | Skip — internal only | Tailscale is the gate; no SSO value on the dashboard itself. |
-| ntfy | Skip — by design | Alertmanager and phone app use ntfy tokens directly; forward-auth would break those flows. |
-
-**Sequencing note:** ArgoCD OIDC requires Authentik to have at least one user and group configured. Set that up in the Authentik UI first, then do ArgoCD. Forward-auth services (Traefik, Prometheus, Alertmanager, Uptime Kuma) are independent of each other and can be done in any order.
+| **ArgoCD** | Native OIDC | Create OAuth2 provider in Authentik; patch `argocd-cm` with `oidc.config`; map groups to roles; disable local `admin`. Most involved. |
+| **Traefik dashboard** | Forward-auth middleware | Add `authentik-forwardauth` to IngressRoute. |
+| **Prometheus** | Forward-auth middleware | Add `authentik-forwardauth` to IngressRoute. |
+| **Alertmanager** | Forward-auth middleware | Add `authentik-forwardauth` to IngressRoute. |
+| **Uptime Kuma** | Forward-auth middleware | Add `authentik-forwardauth` to IngressRoute. Uptime Kuma's own login still works behind it. |
+| **Pi-hole admin UI** | Authentik proxy provider | Create proxy provider in Authentik; expose at `pihole.lab.ryantaylor.tech` via IngressRoute. Update Homepage to link here. |
+| ✅ **Grafana** | Already done | — |
+| **Homepage** | Skip | Internal-only, Tailscale is the gate. |
+| **ntfy** | Skip | By design — Alertmanager uses ntfy tokens directly. |
 
 **Tasks:**
-- [ ] Create Authentik OAuth2 provider + application for ArgoCD (OIDC, client secret via SOPS)
-- [ ] Patch `argocd-cm` with OIDC config; map groups to roles; verify login; disable local admin
-- [ ] Add `authentik-forwardauth` middleware to Traefik dashboard IngressRoute
-- [ ] Add `authentik-forwardauth` middleware to Prometheus IngressRoute
-- [ ] Add `authentik-forwardauth` middleware to Alertmanager IngressRoute
-- [ ] Add `authentik-forwardauth` middleware to Uptime Kuma IngressRoute
+- [ ] Create Authentik user + group (UI)
+- [ ] Create OAuth2/OIDC provider + app for ArgoCD; store client secret in SOPS
+- [ ] Patch `argocd-cm` with OIDC config; map Authentik groups to ArgoCD roles
+- [ ] Verify ArgoCD login via Authentik; disable local `admin` account
+- [ ] Add `authentik-forwardauth` middleware to Traefik dashboard, Prometheus, Alertmanager, Uptime Kuma IngressRoutes
 - [ ] Create Authentik proxy provider for Pi-hole; add IngressRoute at `pihole.lab.ryantaylor.tech`
-- [ ] Add `pihole.lab.ryantaylor.tech` tile to Homepage configmap (replacing the direct IP link)
-- **Exit criteria:** every admin UI requires an Authentik login. ArgoCD local `admin` account disabled. No service is reachable via `*.lab.ryantaylor.tech` without authenticating.
+- [ ] Update Homepage configmap to link Pi-hole at the new subdomain
+- **Exit criteria:** every admin UI requires Authentik login. No `*.lab.ryantaylor.tech` service is reachable without SSO.
 
-### Phase 3 — Self-service ("1-click")
-- [ ] **Self-hosted GH Actions runner** provisioned as a small LXC on the homelab. Polls GitHub for jobs; all connections outbound — no inbound ports or public exposure. Hosted runners continue handling CI jobs that don't need homelab access (lint, validate, plan).
-- [ ] GitHub Actions `workflow_dispatch` workflows for: "create dev VM," "create LXC," "deploy app from template." These run on the self-hosted runner so they can reach the Proxmox API and LXC targets directly.
-- [ ] Triggers: Homepage tile links (with prefilled inputs) and `gh` CLI.
-- [ ] Workflows run Terraform and/or open an Argo-tracked PR; results visible in the GH Actions UI.
-- [ ] Packer-built golden images: dev VM (Ubuntu + dotfiles), dev container (devcontainer-style), GUI VM (Ubuntu + RDP/Sunshine).
-- [ ] A "new app" template workflow: opens a PR adding an Argo Application, Authentik proxy provider, Homepage tile, and Uptime Kuma monitor in one commit.
-- **Exit criteria**: spinning up a fresh dev VM is a single button, takes < 5 min, and ends with an SSH-ready host registered in Tailscale.
-
-### Phase 4 — Resilience (local-only)
-PBS already exists (Phase 0). This phase is about making recovery a practiced procedure, not just an assumption.
-
-- [ ] Proxmox Backup Server provisioned (separate VM); first manual backup of an existing LXC verified by restore.
-- [ ] PBS retention + scheduling policies set for all VMs/LXCs (daily/weekly/monthly tier).
-- [ ] Longhorn snapshot schedule for K8s PVs; recovery rehearsed on a scratch namespace.
-- [ ] Documented disaster recovery runbook: "what's recoverable, what isn't, how to rebuild from this repo + local PBS." Explicit about catastrophic host loss = data loss for non-replicated services; this is the chosen tradeoff.
-- [ ] Scheduled "DR drill" workflow that monthly restores a tagged backup into a scratch namespace and asserts data integrity.
-- **Exit criteria**: the DR drill has run end-to-end at least once; runbook walks through a real recovery I've actually performed.
-
-### Phase 5 — Polish (portfolio finish)
-- [ ] Architecture diagram (Excalidraw or D2) committed to `docs/`.
-- [ ] README rewrite: what this is, what it demonstrates, how to read the repo.
-- [ ] Per-component ADRs in `docs/adr/` for the non-obvious choices (Talos vs k3s, Argo vs Flux, Longhorn vs Rook, local-only backups, Tailscale vs CF Tunnel, RAM budgeting + ballooning approach).
-- [ ] Demo script / screencast (optional but high-leverage for portfolio).
-- **Exit criteria**: a stranger can read the README and know within 60 seconds what the project is, what's hard about it, and where the interesting code lives.
+**Effort:** 1–2 hours (ArgoCD OIDC is the heavy lifting; the rest is copy-paste middleware).
 
 ---
 
-## Out-of-scope (for now, with rationale)
+### Phase 3: Self-service provisioning (GH Actions workflows)
 
-- **Multi-node physical cluster** — no second host yet; revisit if/when there is one.
-- **Service mesh (Istio/Linkerd)** — overkill for a homelab; Traefik mTLS is enough.
-- **Hardening / pen-test posture** — a possible future phase if pursued; not blocking the portfolio story.
-- **Custom self-service portal as an MVP** — deferred to Phase 5 stretch; GitHub Actions is the cheap path to the same capability.
-- **Off-site backups** — explicit user decision. Local PBS only. Catastrophic host loss = data loss; trade-off documented in the DR runbook.
-- **Cloudflare Tunnels** — rejected after a prior bad experience; Tailscale handles all remote access.
-- **Self-hosted forge (Forgejo/Gitea)** — sticking with hosted GitHub for the portfolio.
+**Prerequisite:** Phase 2.5 (SSO wiring). Optional but sensible to wire SSO first.
+
+**Concept:** GitHub Actions workflows that let you spin up infrastructure from the repo. Self-hosted runner polls GitHub; all connections outbound.
+
+- [ ] Provision self-hosted GH Actions runner as a small LXC (CT TBD)
+- [ ] Terraform-based `workflow_dispatch` workflow: "Create dev VM" (size, OS, registers in Tailscale)
+- [ ] Terraform-based workflow: "Create LXC" (size, roles, template)
+- [ ] Argo Application template workflow: opens a PR wiring a new app (IngressRoute, Authentik provider, Homepage tile, Uptime Kuma monitor)
+- [ ] Packer golden images: dev VM, dev container, GUI VM
+- [ ] Homepage tile links to GitHub Actions UI, showing status of recent runs
+
+**Exit criteria:** spinning up a dev VM takes one action from GitHub + 5 minutes.
+
+**Effort:** 2–3 weekends (runner setup + workflow scaffolding + golden images).
 
 ---
 
-## Risks / things likely to bite
+### Phase 4: Disaster recovery (PBS + Longhorn)
 
-- **Talos learning curve** — no SSH, everything via `talosctl`. Budget a weekend for Phase 1.
-- **Longhorn on a single host** — replication factor is moot with one node; storage is a SPOF until there's a second host.
-- **Argo bootstrap chicken-and-egg** — the SOPS age key and Cloudflare API token live outside git. Bootstrap is: (1) create cluster, (2) `kubectl create secret` for age key + CF token, (3) `kubectl apply` Argo + root Application, (4) Argo takes over. Document this manual step honestly; don't hide it.
-- **KSOPS in Argo** — Argo CD doesn't have native SOPS support like Flux does. KSOPS is a Kustomize plugin baked into the Argo repo-server image (or installed via init-container). Standard pattern, but it's an extra moving part vs. Flux's built-in support — worth being aware of.
-- **No off-site backups** — by design, but the DR runbook needs to state this plainly. If the host's drives die, the K8s PVs are gone unless the data is also reproducible from git.
-- **ntfy in-cluster is partly self-referential** — if the cluster is down, ntfy can't tell you. Acceptable for homelab scale; mitigation if it bites: a small external watchdog (a `cron` on the Proxmox host pinging the cluster API and sending direct ntfy.sh on failure).
-- **Pi-hole is also self-referential** — if Pi-hole goes down, internal `*.lab.ryantaylor.tech` resolution may break, which means the dashboard you'd use to debug it is unreachable. Mitigation: keep `/etc/hosts` entries for the most critical services on the laptop you'd debug from.
-- **RAM budget assumes game LXCs are stopped when inactive** — if they're left running idle, ~6 GB of overhead returns and concurrent demand starts pushing into ballooning territory all the time. The pattern of "start on demand, stop after" is a real operational discipline this plan depends on.
+**Prerequisite:** none (can run in parallel with Phase 3).
+
+**Concept:** backup and restore procedures are documented and rehearsed.
+
+- [ ] PBS configured with retention policies (daily/weekly/monthly) for all VMs/LXCs
+- [ ] Manual backup + restore of at least one LXC (procedure verification)
+- [ ] Longhorn snapshot schedule for K8s PVs
+- [ ] Rehearse K8s PV restoration into a scratch namespace
+- [ ] Documented runbook: what's recoverable, what isn't, rebuild from repo + PBS
+- [ ] Monthly "DR drill" automated test: restore a tagged backup, assert data integrity
+
+**Exit criteria:** runbook is written; we've successfully restored a real backup.
+
+**Effort:** 1 weekend (mostly procedure documentation + one live restore).
+
+---
+
+### Phase 5: Documentation & portfolio finish
+
+**Prerequisite:** Phases 2.5, 3, 4 complete (or at least milestones reached).
+
+- [ ] Architecture diagram (Excalidraw or D2)
+- [ ] README rewrite: what this is, what it demonstrates, where to read the code
+- [ ] ADRs in `docs/adr/`: Talos vs k3s, Argo vs Flux, Longhorn vs Rook, local-only backups, Tailscale, RAM budgeting, etc.
+- [ ] Optional: screencast or demo script
+
+**Exit criteria:** a stranger can understand the project in 60 seconds.
+
+**Effort:** 1 weekend.
+
+---
+
+### Future candidates (Phase 5+, optional)
+
+If the portfolio story is solid, consider:
+
+- **Vaultwarden / Paperless / Immich / other apps** — maintained Helm charts, gain real value from SSO + TLS + GitOps
+- **Hardening / security audit** — PodSecurityPolicy, network policies, RBAC reviews
+- **Multi-node physical cluster** — revisit only if a second host is added
+- **Off-site backups** — currently out of scope (local-only by design)
+- **Custom self-service portal** — GitHub Actions is sufficient for now
+
+---
+
+## Key gotchas
+
+- **ArgoCD OIDC depends on Authentik user/group existing.** Set those up in the UI first.
+- **Forward-auth middleware gets added to IngressRoutes.** Middleware is already deployed (`authentik-forwardauth`); just reference it in the route metadata.
+- **Pi-hole proxy provider needs to forward to `http://10.0.1.160/admin`** — use the LXC's internal IP, not a public domain.
+- **Memory budget assumes game LXCs are stopped when idle.** This is an operational discipline, not enforced by code.
+- **Longhorn on a single host is a SPOF** — PV replication is moot until a second node exists.
 
 ---
 
 ## Working agreement
 
-- This file is updated whenever scope, sequencing, or component choices change. Don't let it rot.
-- Each phase ends with a tagged commit (`phase-1-platform`, etc.) so the history is legible.
-- Every non-obvious choice gets one paragraph in `docs/adr/` when it lands — not before.
+- This file is updated whenever scope or dependencies change. Don't let it rot.
+- Completed work gets trimmed down and archived to `docs/` (gotchas, runbooks).
+- Every non-obvious choice gets an ADR in `docs/adr/` when it ships.
