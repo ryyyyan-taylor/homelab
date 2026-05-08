@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dash
+  namespace: dash
+spec:
+  selector:
+    app: dash
+  ports:
+    - port: 80
+      targetPort: 8080

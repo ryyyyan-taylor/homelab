@@ -20,3 +20,5 @@ resources:
   - platform/promtail/application.yaml
   - platform/uptime-kuma/application.yaml
   - platform/homepage/application.yaml
+  - platform/dash-config/application.yaml
+  - platform/dash/application.yaml

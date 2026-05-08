@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dash
+  namespace: dash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dash
+  template:
+    metadata:
+      labels:
+        app: dash
+    spec:
+      serviceAccountName: dash
+      containers:
+        - name: dash
+          image: ghcr.io/ryyyyan-taylor/homelab-dash:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PROXMOX_URL
+              value: https://10.0.1.135:8006
+            - name: PROXMOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dash-proxmox
+                  key: token
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
