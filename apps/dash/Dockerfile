@@ -1,9 +1,9 @@
 FROM node:22-alpine AS frontend
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+COPY frontend/package.json frontend/yarn.lock ./
+RUN yarn install --frozen-lockfile
 COPY frontend/ ./
-RUN npm run build
+RUN yarn build
 
 FROM golang:1.23-alpine AS backend
 WORKDIR /app
