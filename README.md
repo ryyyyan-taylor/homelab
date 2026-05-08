@@ -34,6 +34,7 @@ Single-node Proxmox host running a three-VM Talos Kubernetes cluster, managed en
 | Service | URL |
 |---|---|
 | Dashboard | `https://lab.ryantaylor.tech` |
+| Homelab Dash | `https://dash.lab.ryantaylor.tech` |
 | ArgoCD | `https://argocd.lab.ryantaylor.tech` |
 | Authentik | `https://authentik.lab.ryantaylor.tech` |
 | Grafana | `https://grafana.lab.ryantaylor.tech` |
@@ -58,6 +59,8 @@ kubernetes/
   talos/         # Talos machine configs (SOPS-encrypted)
 terraform/       # Proxmox VM provisioning
 ansible/         # LXC base config + Promtail
+apps/
+  dash/          # Custom Proxmox + k8s dashboard (Go + Svelte)
 docs/            # inventory.md (detailed reference)
 ```
 
