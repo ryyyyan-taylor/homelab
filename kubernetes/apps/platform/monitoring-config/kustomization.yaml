@@ -8,5 +8,6 @@ resources:
   - prometheus-ingressroute.yaml
   - alertmanager-ingressroute.yaml
   - lxc-alerts.yaml
+  - game-servers-dashboard.yaml
 generators:
   - ksops.yaml

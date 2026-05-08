@@ -1,0 +1,655 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-servers-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  game-servers.json: |
+    {
+      "title": "Game Servers",
+      "uid": "game-servers-homelab",
+      "description": "CPU, memory, network, disk, and logs for Minecraft, Terraria, and Corekeeper LXCs",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "tags": ["game-servers", "homelab"],
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "hide": 2,
+            "name": "prom",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "type": "datasource"
+          },
+          {
+            "current": {},
+            "hide": 2,
+            "name": "loki",
+            "options": [],
+            "query": "loki",
+            "refresh": 1,
+            "type": "datasource"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "row",
+          "title": "System Overview",
+          "id": 1,
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+          "collapsed": false
+        },
+        {
+          "type": "stat",
+          "title": "Corekeeper — CPU",
+          "id": 2,
+          "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",hostname=\"corekeeper\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Minecraft — CPU",
+          "id": 3,
+          "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",hostname=\"minecraft\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Terraria — CPU",
+          "id": 4,
+          "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",hostname=\"terraria\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Corekeeper — RAM",
+          "id": 5,
+          "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_memory_MemAvailable_bytes{hostname=\"corekeeper\",job=\"lxc-node-exporter\"} / node_memory_MemTotal_bytes{hostname=\"corekeeper\",job=\"lxc-node-exporter\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Minecraft — RAM",
+          "id": 6,
+          "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_memory_MemAvailable_bytes{hostname=\"minecraft\",job=\"lxc-node-exporter\"} / node_memory_MemTotal_bytes{hostname=\"minecraft\",job=\"lxc-node-exporter\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Terraria — RAM",
+          "id": 7,
+          "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_memory_MemAvailable_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\"} / node_memory_MemTotal_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "CPU & Memory",
+          "id": 8,
+          "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+          "collapsed": false
+        },
+        {
+          "type": "timeseries",
+          "title": "CPU Usage",
+          "id": 9,
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "100 - (avg by (hostname) (irate(node_cpu_seconds_total{mode=\"idle\",hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "legendFormat": "{{hostname}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory Usage",
+          "id": 10,
+          "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"} - node_memory_MemAvailable_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}",
+              "legendFormat": "{{hostname}} used",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}",
+              "legendFormat": "{{hostname}} total",
+              "refId": "B"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 5,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "never"
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byFrameRefID", "options": "B" },
+                "properties": [
+                  { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } },
+                  { "id": "custom.fillOpacity", "value": 0 }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "row",
+          "title": "Network",
+          "id": 11,
+          "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 },
+          "collapsed": false
+        },
+        {
+          "type": "timeseries",
+          "title": "Network — Receive",
+          "id": 12,
+          "gridPos": { "x": 0, "y": 15, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "sum by (hostname) (irate(node_network_receive_bytes_total{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
+              "legendFormat": "{{hostname}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Network — Transmit",
+          "id": 13,
+          "gridPos": { "x": 12, "y": 15, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "sum by (hostname) (irate(node_network_transmit_bytes_total{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
+              "legendFormat": "{{hostname}}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "tooltip": { "mode": "multi", "sort": "desc" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "never"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "Disk Usage",
+          "id": 14,
+          "gridPos": { "x": 0, "y": 23, "w": 24, "h": 1 },
+          "collapsed": false
+        },
+        {
+          "type": "gauge",
+          "title": "Corekeeper — Disk ( / )",
+          "id": 15,
+          "gridPos": { "x": 0, "y": 24, "w": 8, "h": 6 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_filesystem_avail_bytes{hostname=\"corekeeper\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{hostname=\"corekeeper\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "gauge",
+          "title": "Minecraft — Disk ( / )",
+          "id": 16,
+          "gridPos": { "x": 8, "y": 24, "w": 8, "h": 6 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_filesystem_avail_bytes{hostname=\"minecraft\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{hostname=\"minecraft\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "gauge",
+          "title": "Terraria — Disk ( / )",
+          "id": 17,
+          "gridPos": { "x": 16, "y": 24, "w": 8, "h": 6 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_filesystem_avail_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "Game Server Logs",
+          "id": 18,
+          "gridPos": { "x": 0, "y": 30, "w": 24, "h": 1 },
+          "collapsed": false
+        },
+        {
+          "type": "logs",
+          "title": "Minecraft Logs",
+          "id": 19,
+          "gridPos": { "x": 0, "y": 31, "w": 8, "h": 12 },
+          "datasource": { "type": "loki", "uid": "${loki}" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${loki}" },
+              "expr": "{job=\"game_server\", host=\"minecraft\"}",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "dedupStrategy": "none",
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Terraria Logs",
+          "id": 20,
+          "gridPos": { "x": 8, "y": 31, "w": 8, "h": 12 },
+          "datasource": { "type": "loki", "uid": "${loki}" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${loki}" },
+              "expr": "{job=\"game_server\", host=\"terraria\"}",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "dedupStrategy": "none",
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Corekeeper Logs",
+          "id": 21,
+          "gridPos": { "x": 16, "y": 31, "w": 8, "h": 12 },
+          "datasource": { "type": "loki", "uid": "${loki}" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${loki}" },
+              "expr": "{job=\"game_server\", host=\"corekeeper\"}",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "dedupStrategy": "none",
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false
+          }
+        }
+      ]
+    }

@@ -190,6 +190,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Grafana auth | Authentik forward-auth + Grafana auth.proxy (auto-login via X-Authentik-Username header) |
 | Grafana admin password | `monitoring/monitoring-secrets` Secret, key `grafana-admin-password` (SOPS: `monitoring-config/monitoring-secrets.sops.yaml`) |
 | Grafana dashboards | Node Exporter Full (ID 1860) auto-provisioned via `grafana.dashboards` in Helm values — shows CPU/RAM/disk/network for all LXCs + Proxmox host |
+| Grafana dashboards | Game Servers — custom ConfigMap (`monitoring-config/game-servers-dashboard.yaml`, label `grafana_dashboard: "1"`) — CPU%, RAM%, network, disk gauges, and live Loki log panels for Minecraft/Terraria/Corekeeper |
 | Prometheus retention | 30d, 20Gi PVC on `local-path` |
 | Alertmanager config | `monitoring/alertmanager-config` Secret (SOPS: `monitoring-config/alertmanager-config.sops.yaml`) |
 | Alertmanager destination | ntfy at `http://ntfy.ntfy.svc.cluster.local/homelab-alerts`, topic `homelab-alerts` |
