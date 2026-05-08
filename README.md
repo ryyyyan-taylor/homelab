@@ -45,10 +45,10 @@ Single-node Proxmox host running a three-VM Talos Kubernetes cluster, managed en
 | Traefik | `https://traefik.lab.ryantaylor.tech` |
 
 <!-- screenshot: Grafana node exporter dashboard showing all nodes + LXCs -->
-![Grafana](docs/screenshots/grafana.png)
+<!-- ![Grafana](docs/screenshots/grafana.png) -->
 
 <!-- screenshot: Uptime Kuma status page -->
-![Uptime Kuma](docs/screenshots/uptime-kuma.png)
+<!-- ![Uptime Kuma](docs/screenshots/uptime-kuma.png) -->
 
 ## Repo Layout
 
@@ -66,4 +66,4 @@ docs/            # inventory.md (detailed reference)
 
 ## Details
 
-Full documentation lives in the [wiki](https://github.com/ryyyyan-taylor/homelab/wiki) — per-service pages with versions, gotchas, and runbooks.
+Full documentation lives in the [wiki](https://github.com/ryyyyan-taylor/homelab/wiki).
