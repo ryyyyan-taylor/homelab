@@ -14,6 +14,11 @@ spec:
         app: dash
     spec:
       serviceAccountName: dash
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: dash
           image: ghcr.io/ryyyyan-taylor/homelab-dash:latest
@@ -27,6 +32,10 @@ spec:
                 secretKeyRef:
                   name: dash-proxmox
                   key: token
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 10m
