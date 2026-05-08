@@ -8,3 +8,4 @@ metadata:
         path: ksops
 files:
   - authentik-secrets.sops.yaml
+  - ldap-outpost-token.sops.yaml

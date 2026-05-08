@@ -1,6 +1,39 @@
 ---
-# Exposes the Authentik embedded LDAP outpost (pod port 3389) through Traefik's
-# TCP ldap entrypoint at 10.0.1.210:389, reachable by all LXCs on the flat network.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-ldap-outpost
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-ldap-outpost
+  template:
+    metadata:
+      labels:
+        app: authentik-ldap-outpost
+    spec:
+      containers:
+        - name: ldap
+          image: ghcr.io/goauthentik/ldap:2026.2.2
+          env:
+            - name: AUTHENTIK_HOST
+              value: "http://authentik-server.authentik.svc.cluster.local"
+            - name: AUTHENTIK_INSECURE
+              value: "true"
+            - name: AUTHENTIK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: authentik-ldap-outpost-token
+                  key: token
+          ports:
+            - containerPort: 3389
+              name: ldap
+            - containerPort: 6636
+              name: ldaps
+---
+# Routes Traefik's ldap TCP entrypoint (10.0.1.210:389) to the outpost pod.
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,8 +41,7 @@ metadata:
   namespace: authentik
 spec:
   selector:
-    app.kubernetes.io/name: authentik
-    app.kubernetes.io/component: server
+    app: authentik-ldap-outpost
   ports:
     - name: ldap
       port: 389

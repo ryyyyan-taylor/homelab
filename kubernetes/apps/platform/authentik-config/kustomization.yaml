@@ -6,3 +6,4 @@ resources:
   - ldap-service.yaml
 generators:
   - ksops.yaml
+
