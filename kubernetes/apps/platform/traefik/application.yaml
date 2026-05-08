@@ -32,6 +32,13 @@ spec:
         ingressRoute:
           dashboard:
             enabled: false
+        ports:
+          ldap:
+            port: 389
+            expose:
+              default: true
+            exposedPort: 389
+            protocol: TCP
         providers:
           kubernetesCRD:
             enabled: true

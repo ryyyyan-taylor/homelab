@@ -1,0 +1,36 @@
+[sssd]
+services = nss, pam, sudo
+config_file_version = 2
+domains = authentik
+
+[domain/authentik]
+id_provider = ldap
+auth_provider = ldap
+access_provider = ldap
+sudo_provider = none
+
+ldap_uri = {{ ldap_uri }}
+ldap_search_base = {{ ldap_base_dn }}
+ldap_default_bind_dn = {{ ldap_bind_dn }}
+ldap_default_authtok_type = password
+ldap_default_authtok = {{ ldap_bind_password }}
+
+# Authentik LDAP schema
+ldap_user_object_class = user
+ldap_group_object_class = group
+ldap_user_name = cn
+ldap_user_uid_number = uidNumber
+ldap_user_gid_number = gidNumber
+ldap_user_home_directory = homeDirectory
+ldap_user_shell = loginShell
+ldap_group_name = cn
+ldap_group_member = member
+
+# Restrict SSH access to members of a specific Authentik group.
+# Remove ldap_access_filter to allow all Authentik users to log in.
+ldap_access_filter = (memberOf=cn={{ ldap_admin_group }},ou=groups,{{ ldap_base_dn }})
+
+enumerate = false
+cache_credentials = true
+fallback_homedir = /home/%u
+default_shell = /bin/bash

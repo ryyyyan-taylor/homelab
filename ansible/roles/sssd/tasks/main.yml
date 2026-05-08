@@ -1,0 +1,42 @@
+---
+- name: Install sssd and PAM helpers
+  ansible.builtin.apt:
+    name:
+      - sssd
+      - sssd-ldap
+      - libpam-sss
+      - libnss-sss
+      - libsss-sudo
+      - oddjob-mkhomedir
+    state: present
+    update_cache: true
+
+- name: Deploy sssd.conf
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: restart sssd
+
+- name: Enable pam_mkhomedir so home dirs are created on first login
+  ansible.builtin.command:
+    cmd: pam-auth-update --enable mkhomedir
+  changed_when: false
+
+- name: Allow LDAP group passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/ldap-admins
+    content: |
+      %{{ ldap_admin_group }} ALL=(ALL) NOPASSWD:ALL
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+
+- name: Ensure sssd is enabled and running
+  ansible.builtin.service:
+    name: sssd
+    enabled: true
+    state: started

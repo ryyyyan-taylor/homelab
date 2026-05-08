@@ -1,3 +1,13 @@
 ---
 ansible_user: root
 ansible_python_interpreter: auto_silent
+
+# Authentik LDAP — non-secret connection details
+# Base DN must match what you set in the Authentik LDAP Provider.
+ldap_uri: "ldap://10.0.1.210"
+ldap_base_dn: "dc=ldap,dc=goauthentik,dc=io"
+ldap_bind_dn: "cn=ldap-bind,ou=users,dc=ldap,dc=goauthentik,dc=io"
+
+# Authentik group that gets passwordless sudo on all LXCs.
+# Create this group in Authentik and add your admin users to it.
+ldap_admin_group: "lxc-admins"

@@ -142,7 +142,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Helm repo | `https://traefik.github.io/charts` |
 | External IP | `10.0.1.210` (MetalLB VIP) |
 | Dashboard | `https://traefik.lab.ryantaylor.tech` |
-| Entrypoints | `web` (:80, redirects to HTTPS), `websecure` (:443) |
+| Entrypoints | `web` (:80, redirects to HTTPS), `websecure` (:443), `ldap` (:389 TCP → Authentik LDAP outpost) |
 | TLS | Default TLSStore set to wildcard cert — all IngressRoutes use `tls: {}` |
 | Cross-namespace IngressRoutes | Enabled (`allowCrossNamespace: true`) |
 | Known gotcha | Chart v34 removed `ports.web.redirectTo` — use `ports.web.redirections.entryPoint` instead |
@@ -174,6 +174,9 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Secret injection | `global.env` with `valueFrom.secretKeyRef`; postgres subchart uses `postgresql.auth.existingSecret` |
 | IngressRoute | `authentik-config/ingressroute.yaml` — deployed at wave 7 before Helm pods start |
 | Forward auth | Embedded outpost (`authentik Embedded Outpost`) — Go router on port 9000 inside server pod |
+| LDAP outpost | Embedded outpost also serves LDAP on pod port 3389; exposed via `authentik-ldap` Service + Traefik TCP IngressRouteTCP at `10.0.1.210:389` |
+| LDAP bind account | Authentik user `ldap-bind` — password in `ansible/group_vars/all/secrets.sops.yaml` |
+| LDAP admin group | `lxc-admins` Authentik group — members get passwordless sudo on all LXCs via SSSD |
 | Known gotcha | Authentik 2026.x changed the Traefik forward-auth path from `/auth/tr` → `/auth/traefik`. Middleware address must end in `/outpost.goauthentik.io/auth/traefik` |
 | Known gotcha | ArgoCD v2.14.x schema doesn't include `terminatingReplicas` (added in k8s 1.36) — add `ignoreDifferences` with `jqPathExpressions: [.status.terminatingReplicas]` on Deployment and StatefulSet |
 

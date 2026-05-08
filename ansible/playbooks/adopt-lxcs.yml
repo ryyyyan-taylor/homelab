@@ -2,8 +2,13 @@
 - name: Adopt all LXCs
   hosts: game_servers,infrastructure
   remote_user: root
+  pre_tasks:
+    - name: Load all-group secrets (LDAP bind password etc.)
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../group_vars/all/secrets.sops.yaml"
   roles:
     - base
+    - sssd
 
 - name: Configure pi-hole
   hosts: pi-hole
