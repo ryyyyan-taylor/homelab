@@ -41,9 +41,23 @@ spec:
           ingress:
             enabled: false
           replicas: 1
+          resources:
+            requests:
+              cpu: 25m
+              memory: 400Mi
+            limits:
+              cpu: 500m
+              memory: 900Mi
 
         worker:
           replicas: 1
+          resources:
+            requests:
+              cpu: 50m
+              memory: 300Mi
+            limits:
+              cpu: 1000m
+              memory: 700Mi
 
         postgresql:
           enabled: true
@@ -59,12 +73,26 @@ spec:
               enabled: true
               size: 8Gi
               storageClass: local-path
+            resources:
+              requests:
+                cpu: 25m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 384Mi
 
         redis:
           enabled: true
           master:
             persistence:
               enabled: false
+            resources:
+              requests:
+                cpu: 10m
+                memory: 16Mi
+              limits:
+                cpu: 100m
+                memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: authentik

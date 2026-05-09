@@ -19,6 +19,13 @@ spec:
           # Talos kubelet certs are signed by the Talos CA, not a public CA.
           # metrics-server must skip TLS verification when scraping kubelet metrics.
           - --kubelet-insecure-tls
+        resources:
+          requests:
+            cpu: 10m
+            memory: 24Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system

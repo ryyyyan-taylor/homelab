@@ -16,6 +16,14 @@ spec:
         - name: ksops-tmp
           emptyDir: {}
       containers:
+        - name: argocd-repo-server
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
         - name: ksops-cmp
           command: [/var/run/argocd/argocd-cmp-server]
           image: viaductoss/ksops:v4.2.3
@@ -38,3 +46,10 @@ spec:
             - mountPath: /etc/age
               name: age-key
               readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

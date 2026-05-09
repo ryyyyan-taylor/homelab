@@ -21,6 +21,13 @@ spec:
               prefix: ghcr.io
               api_url: https://ghcr.io
               credentials: pullsecret:argocd/ghcr-credentials
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

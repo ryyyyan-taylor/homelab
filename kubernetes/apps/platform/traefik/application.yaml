@@ -48,6 +48,13 @@ spec:
         logs:
           general:
             level: INFO
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik

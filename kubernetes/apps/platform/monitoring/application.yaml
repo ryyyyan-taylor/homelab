@@ -34,6 +34,13 @@ spec:
             enabled: false
           prometheusSpec:
             retention: 30d
+            resources:
+              requests:
+                cpu: 100m
+                memory: 300Mi
+              limits:
+                cpu: 500m
+                memory: 700Mi
             # local-path-provisioner doesn't honor fsGroup with subPath mounts —
             # init container chowns the prometheus-db subPath so Prometheus (uid 1000) can write
             initContainers:
@@ -89,6 +96,13 @@ spec:
             enabled: false
           alertmanagerSpec:
             configSecret: alertmanager-config
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
             # Same local-path + subPath fsGroup quirk as Prometheus
             initContainers:
               - name: init-chown-data
@@ -116,6 +130,13 @@ spec:
 
         # Grafana
         grafana:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 600Mi
           # Grafana creates 0700 dirs (png/csv/pdf) in the PVC at runtime.
           # init-chown-data drops all caps except CHOWN, so it can't traverse
           # those dirs on rolling updates. DAC_OVERRIDE allows traversal.
@@ -166,6 +187,33 @@ spec:
             users:
               auto_assign_org: "true"
               auto_assign_org_role: Admin
+
+        prometheusOperator:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 16Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 16Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+
+        nodeExporter:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

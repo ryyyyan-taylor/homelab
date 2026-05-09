@@ -11,3 +11,10 @@ spec:
           args:
             - /usr/local/bin/argocd-server
             - --insecure
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 192Mi

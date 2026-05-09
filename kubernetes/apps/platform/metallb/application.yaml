@@ -13,6 +13,24 @@ spec:
     repoURL: https://metallb.github.io/metallb
     chart: metallb
     targetRevision: 0.14.8
+    helm:
+      values: |
+        controller:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+        speaker:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system
