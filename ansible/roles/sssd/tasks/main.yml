@@ -35,6 +35,16 @@
     mode: "0440"
     validate: visudo -cf %s
 
+- name: Allow LDAP admin users passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/ldap-user-{{ item }}
+    content: "{{ item }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+  loop: "{{ ldap_sudo_users }}"
+
 - name: Ensure sssd is enabled and running
   ansible.builtin.service:
     name: sssd

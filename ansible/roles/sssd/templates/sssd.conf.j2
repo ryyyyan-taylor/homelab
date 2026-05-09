@@ -15,6 +15,10 @@ ldap_default_bind_dn = {{ ldap_bind_dn }}
 ldap_default_authtok_type = password
 ldap_default_authtok = {{ ldap_bind_password }}
 
+# Internal network — disable STARTTLS and cert verification
+ldap_id_use_start_tls = false
+ldap_tls_reqcert = never
+
 # Authentik LDAP schema
 ldap_user_object_class = user
 ldap_group_object_class = group

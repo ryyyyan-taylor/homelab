@@ -2,3 +2,26 @@
 - import_tasks: node_exporter.yml
 - import_tasks: promtail.yml
   when: base_install_promtail | bool
+
+- name: Authorise admin SSH keys for root
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ item }}"
+    state: present
+  loop: "{{ admin_ssh_keys }}"
+
+- name: Ensure rt home directory exists
+  ansible.builtin.file:
+    path: /home/rt
+    state: directory
+    owner: rt
+    group: rt
+    mode: "0700"
+
+- name: Authorise admin SSH keys for rt
+  ansible.posix.authorized_key:
+    user: rt
+    key: "{{ item }}"
+    state: present
+    manage_dir: true
+  loop: "{{ admin_ssh_keys }}"

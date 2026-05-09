@@ -4,5 +4,9 @@ ldap_base_dn: "dc=ldap,dc=goauthentik,dc=io"
 ldap_bind_dn: "cn=ldap-bind,ou=users,dc=ldap,dc=goauthentik,dc=io"
 ldap_bind_password: ""          # set in group_vars/all/secrets.sops.yaml
 
-# LDAP group whose members get passwordless sudo on all LXCs
+# LDAP group whose members get SSH access on all LXCs
 ldap_admin_group: "lxc-admins"
+
+# LDAP users to grant explicit passwordless sudo (bypasses group resolution)
+ldap_sudo_users:
+  - rt

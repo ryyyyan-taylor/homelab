@@ -11,3 +11,8 @@ ldap_bind_dn: "cn=ldap-bind,ou=users,dc=ldap,dc=goauthentik,dc=io"
 # Authentik group that gets passwordless sudo on all LXCs.
 # Create this group in Authentik and add your admin users to it.
 ldap_admin_group: "lxc-admins"
+
+# SSH public keys deployed to root and rt on every LXC.
+admin_ssh_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEWKknEEH7Ux+sTb5U9LRxIl5ibfbZZh0bEhKKIxPyzJ ryan-desktop"
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDqWWKeNk86zk0VqONjensGdpLszGUwHkyES+sSkLiGJs2MXX2Q8C1ifVwHlsEX5pwxBCgmwJPoGkoBdxX01uyjTGuy1Yxix54yhf/YTsg9bvwKmEuNNvXbyveV+Ik++gcnLkUktdjUJxqiOabgwTYxDVEPMdhUM7vS+mzOFg8N4FxU20aedaC2q7c7aVNAN/HvDh/qs0xBeco1+SgxGIUHSjdbD1M7Q6r1DJ0SenKsphvCeALYjVlsKayw3XZAjAkrQou7br0PCiof8CvnnDKdpB7lI5D8zTfMOU5IQjUFAu3vqsuYW6tvNLTvclmrCgMaRl/5tJqZKKRGAnlS7Vl2qdQHz0gEyfay1q2ueWzs1vx+97yYS0ZK6D9WZIx+KzYUs6iyDtBaeVXDX0OQDb7CXkKnndJV/mtQoTKGlYbI/88A7uLkqCW9I/MqcELrMdILHAfUNMWs/6Zoy2C4B5Z5he48c2FmC/qSHfSn+LbHRPE1oBGgsJf42Iv2OGPNSNU= rt@ryan-desktop"

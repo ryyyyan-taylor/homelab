@@ -2,6 +2,8 @@
 - name: Adopt all LXCs
   hosts: game_servers,infrastructure
   remote_user: root
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all/vars.yml"
   pre_tasks:
     - name: Load all-group secrets (LDAP bind password etc.)
       community.sops.load_vars:
