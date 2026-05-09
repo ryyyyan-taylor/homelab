@@ -13,8 +13,8 @@ spec:
               cpu: 50m
               memory: 256Mi
             limits:
-              cpu: 500m
-              memory: 600Mi
+              cpu: 1000m
+              memory: 1Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
