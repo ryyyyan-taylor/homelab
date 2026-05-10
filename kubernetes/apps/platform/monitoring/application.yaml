@@ -168,6 +168,14 @@ spec:
               url: http://loki.loki.svc.cluster.local:3100
               access: proxy
               isDefault: false
+          sidecar:
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
           dashboards:
             default:
               node-exporter-full:
@@ -175,6 +183,8 @@ spec:
                 revision: 37
                 datasource: Prometheus
           grafana.ini:
+            database:
+              wal: true
             server:
               root_url: https://grafana.lab.ryantaylor.tech
             "auth.proxy":
