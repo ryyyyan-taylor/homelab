@@ -4,7 +4,6 @@ namespace: argocd
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v2.14.2/manifests/install.yaml
   - cmp-plugin-cm.yaml
-  - argocd-cm-patch.yaml
   - ingressroute.yaml
 patches:
   - path: repo-server-patch.yaml
@@ -15,4 +14,27 @@ patches:
     target:
       kind: Deployment
       name: argocd-server
-  - path: argocd-components-resources-patch.yaml
+  - path: application-controller-patch.yaml
+    target:
+      kind: StatefulSet
+      name: argocd-application-controller
+  - path: applicationset-controller-patch.yaml
+    target:
+      kind: Deployment
+      name: argocd-applicationset-controller
+  - path: dex-server-patch.yaml
+    target:
+      kind: Deployment
+      name: argocd-dex-server
+  - path: notifications-controller-patch.yaml
+    target:
+      kind: Deployment
+      name: argocd-notifications-controller
+  - path: redis-patch.yaml
+    target:
+      kind: Deployment
+      name: argocd-redis
+  - path: argocd-cm-patch.yaml
+    target:
+      kind: ConfigMap
+      name: argocd-cm
