@@ -33,16 +33,16 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | Pool | VG | Total | Used by |
 |---|---|---|---|
 | `data` | `pve` | ~58 GB | All existing LXCs |
-| `hdd` | `hdd` | ~980 GB | Talos VMs (Phase 1) |
+| `ssd` | `ssd` | ~219 GB | Talos VMs |
 | `old-hdd` | — | — | Filesystem mount only; not Proxmox storage |
 
 ## Talos Cluster (VMs)
 
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
-| 200 | talos-cp-200 | `10.0.1.200` | control-plane | 2 | 4 GB | 40 GB on `hdd` |
-| 201 | talos-wk-201 | `10.0.1.201` | worker | 4 | 6 GB | 60 GB on `hdd` |
-| 202 | talos-wk-202 | `10.0.1.202` | worker | 4 | 6 GB | 60 GB on `hdd` |
+| 200 | talos-cp-200 | `10.0.1.200` | control-plane | 2 | 4 GB | 40 GB on `ssd` |
+| 201 | talos-wk-201 | `10.0.1.201` | worker | 4 | 4 GB | 60 GB on `ssd` |
+| 202 | talos-wk-202 | `10.0.1.202` | worker | 4 | 4 GB | 60 GB on `ssd` |
 
 - Talos v1.13.0, Kubernetes v1.36.0
 - Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted)
