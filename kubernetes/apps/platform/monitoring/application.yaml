@@ -137,6 +137,20 @@ spec:
             limits:
               cpu: 500m
               memory: 600Mi
+          livenessProbe:
+            initialDelaySeconds: 180
+            failureThreshold: 10
+            periodSeconds: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+          readinessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 3
+            periodSeconds: 10
+            httpGet:
+              path: /api/health
+              port: 3000
           # Grafana creates 0700 dirs (png/csv/pdf) in the PVC at runtime.
           # init-chown-data drops all caps except CHOWN, so it can't traverse
           # those dirs on rolling updates. DAC_OVERRIDE allows traversal.
