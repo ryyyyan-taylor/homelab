@@ -192,19 +192,19 @@ spec:
           resources:
             requests:
               cpu: 25m
-              memory: 16Mi
+              memory: 32Mi
             limits:
               cpu: 200m
-              memory: 64Mi
+              memory: 128Mi
 
         kube-state-metrics:
           resources:
             requests:
               cpu: 25m
-              memory: 16Mi
+              memory: 32Mi
             limits:
               cpu: 200m
-              memory: 64Mi
+              memory: 128Mi
 
         nodeExporter:
           resources:
