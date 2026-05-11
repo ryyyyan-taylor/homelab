@@ -207,6 +207,9 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Known gotcha | Control plane VM must NOT balloon — when ballooned to floor (2 GB) under kube-prometheus-stack load, kube-apiserver OOMs in a Go runtime crash loop. Set `dedicated = 4096` (no `floating`) in Terraform |
 | Known gotcha | Grafana init-chown-data drops all caps except CHOWN; after Grafana writes 0700 dirs to the PVC, rolling updates fail traversing them. Fix: add `DAC_OVERRIDE` via `grafana.initChownData.securityContext.capabilities.add` |
 | Known gotcha | `prometheusAdapter.enabled: true` does not render resources when `fullnameOverride: monitoring` is set — use standalone metrics-server instead |
+| Known gotcha | Grafana 13 App Platform (grafana-apiserver) uses a separate `resource-db` SQLite file for unified storage. 3 concurrent job drivers contend on `resource_version` table at startup — enable `database.wal: true` in grafana.ini to enable WAL mode and eliminate SQLITE_BUSY errors |
+| Known gotcha | Grafana 13 plugin loading (grafana-exploretraces, lokiexplore, metricsdrilldown, pyroscope) takes 1.5–2 min with network timeouts; total startup is ~3.5 min. Liveness probe must have `initialDelaySeconds: 180` + `failureThreshold: 10` (280s total) to survive. Default 60s delay kills Grafana before HTTP server opens |
+| Known gotcha | `grafana-sc-dashboard` and `grafana-sc-datasources` sidecars have no default resource limits — set `sidecar.resources.limits.memory: 128Mi` or node OOM killer will target them during pressure |
 
 ### metrics-server
 
