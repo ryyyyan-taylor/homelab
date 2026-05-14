@@ -25,12 +25,11 @@ patches:
                   fallthrough in-addr.arpa ip6.arpa
                   ttl 30
               }
-              forward . 1.1.1.1 {
+              forward . 1.1.1.1 1.0.0.1 {
                  max_concurrent 1000
                  policy round_robin
               }
-              cache 30 {
-                 disable success cluster.local
+              cache 120 {
                  disable denial cluster.local
               }
               loop
@@ -43,7 +42,7 @@ patches:
       metadata:
         name: coredns
       spec:
-        replicas: 3
+        replicas: 4
         template:
           spec:
             topologySpreadConstraints:
