@@ -28,6 +28,19 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | `10.0.1.1 – 10.0.1.149` | Router DHCP |
 | `10.0.1.150+` | Static assignments (Proxmox host, LXCs, VMs) |
 
+### DNS Configuration
+
+| Component | Primary | Secondary | Notes |
+|---|---|---|---|
+| Talos nodes | Cloudflare 1.1.1.1 | Pi-hole 10.0.1.160 | Prevents Pi-hole overload from affecting cluster |
+| CoreDNS | Cloudflare 1.1.1.1 | (direct, no secondary) | Forwards external queries directly; cluster.local resolved locally |
+| Pi-hole | — | — | Provides `*.lab.ryantaylor.tech` wildcard DNS for external access (10.0.1.210) |
+
+**DNS resolution flow:**
+- **Inside cluster pods**: CoreDNS → local resolution for cluster.local, direct Cloudflare for external
+- **Node system DNS**: systemd-resolved → Cloudflare primary, Pi-hole secondary
+- **External (Proxmox/network)**: Pi-hole → resolves `*.lab.ryantaylor.tech` to VIP
+
 ## Storage
 
 | Pool | VG | Total | Used by |

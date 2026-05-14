@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - platform/cert-manager/application.yaml
   - platform/cert-manager-config/application.yaml
+  - platform/coredns-config/application.yaml
   - platform/metallb/application.yaml
   - platform/metallb-config/application.yaml
   - platform/traefik/application.yaml

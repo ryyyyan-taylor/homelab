@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kube-system
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: coredns
+      data:
+        Corefile: |
+          .:53 {
+              errors
+              health {
+                  lameduck 5s
+              }
+              ready
+              log . {
+                  class error
+              }
+              prometheus :9153
+
+              kubernetes cluster.local in-addr.arpa ip6.arpa {
+                  pods insecure
+                  fallthrough in-addr.arpa ip6.arpa
+                  ttl 30
+              }
+              forward . 1.1.1.1 {
+                 max_concurrent 1000
+                 policy round_robin
+                 health http://1.1.1.1/dns-query
+              }
+              cache 30 {
+                 disable success cluster.local
+                 disable denial cluster.local
+              }
+              loop
+              reload
+              loadbalance
+          }
