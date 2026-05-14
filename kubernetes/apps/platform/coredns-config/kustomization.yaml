@@ -28,7 +28,6 @@ patches:
               forward . 1.1.1.1 {
                  max_concurrent 1000
                  policy round_robin
-                 health http://1.1.1.1/dns-query
               }
               cache 30 {
                  disable success cluster.local
