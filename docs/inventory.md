@@ -53,7 +53,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
-| 200 | talos-cp-200 | `10.0.1.200` | control-plane | 2 | 4 GB | 40 GB on `ssd` |
+| 200 | talos-cp-200 | `10.0.1.200` | control-plane | 2 | 6 GB | 40 GB on `ssd` |
 | 201 | talos-wk-201 | `10.0.1.201` | worker | 4 | 4 GB | 60 GB on `ssd` |
 | 202 | talos-wk-202 | `10.0.1.202` | worker | 4 | 4 GB | 60 GB on `ssd` |
 
@@ -61,6 +61,8 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 - Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted)
 - NIC: `ens18`
 - Known gotcha | Talos v1.13 `talosctl gen config` produces multi-document YAML. The second document is `kind: HostnameConfig` with `auto: stable`. To set a static hostname, change that document to `hostname: <name>` — do NOT use `machine.network.hostname` in the main document; it conflicts and causes `"static hostname is already set in v1alpha1 config"`. JSON6902 patches are unsupported on multi-document configs; use strategic-merge patches for the main doc and edit the HostnameConfig document directly in the generated file. After applying, a reboot is required for the kubelet to re-register under the new name. Delete the old stale node object with `kubectl delete node <old-name>` after the node rejoins.
+- Known gotcha | **Proxmox host kernel slab leak**: Heavy Kubernetes networking churn (Flannel/kube-proxy restarts, iptables cycling) causes `kmalloc-rnd-10-*` slab accumulation in `SUnreclaim`. This is unreclaimable and does not self-heal. Symptom: Proxmox host `free -h` shows near-zero available memory despite low RSS in `ps`. OOM killer will fire on KVM processes once swap saturates. Recovery: cleanly shut down VMs, reboot the host. Detection: PrometheusRule `ProxmoxHostSlabLeakWarning` fires at 4 GB SUnreclaim; `ProxmoxHostSlabLeakCritical` at 10 GB.
+- Known gotcha | **Worker unreachable taints**: After a host reboot or network disruption, workers may accumulate `node.kubernetes.io/unreachable:NoSchedule` and `node.kubernetes.io/unreachable:NoExecute` taints that prevent pod scheduling even after the nodes are Ready. Clear manually: `kubectl taint node <name> node.kubernetes.io/unreachable:NoSchedule- node.kubernetes.io/unreachable:NoExecute-`
 
 ## LXC Containers
 

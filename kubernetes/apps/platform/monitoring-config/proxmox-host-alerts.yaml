@@ -1,0 +1,54 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: proxmox-host-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: proxmox-host
+      rules:
+        - alert: ProxmoxHostSlabLeakWarning
+          expr: |
+            node_memory_SUnreclaim_bytes{job="proxmox-host-node-exporter"} > 4 * 1024 * 1024 * 1024
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Proxmox host kernel slab leak detected"
+            description: >
+              Unreclaimable kernel slab (SUnreclaim) on host rt has exceeded 4 GB
+              (currently {{ $value | humanize1024 }}B). This is a known kmalloc-rnd-10-*
+              leak caused by heavy Kubernetes networking churn (Flannel/kube-proxy restarts,
+              iptables churn). It will not self-resolve. Plan a host reboot before
+              MemAvailable drops below 2 GB and the OOM killer starts shooting VMs.
+
+        - alert: ProxmoxHostSlabLeakCritical
+          expr: |
+            node_memory_SUnreclaim_bytes{job="proxmox-host-node-exporter"} > 10 * 1024 * 1024 * 1024
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Proxmox host slab leak critical — OOM kill risk"
+            description: >
+              Unreclaimable kernel slab on host rt exceeds 10 GB
+              (currently {{ $value | humanize1024 }}B). Host is likely swap-saturated.
+              Reboot required immediately: shut down all VMs cleanly, reboot host,
+              then bring VMs back up. If MemAvailable < 2 GB, a VM may already be
+              OOM-killed.
+
+        - alert: ProxmoxHostMemAvailableCritical
+          expr: |
+            node_memory_MemAvailable_bytes{job="proxmox-host-node-exporter"} < 2 * 1024 * 1024 * 1024
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Proxmox host MemAvailable < 2 GB — VM OOM kill imminent"
+            description: >
+              Host rt has less than 2 GB available memory
+              (currently {{ $value | humanize1024 }}B). The kernel OOM killer is likely
+              active or will fire shortly. Check journalctl -k | grep oom-kill on the
+              host. Reboot required to clear slab leak.
