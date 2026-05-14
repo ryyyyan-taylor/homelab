@@ -12,6 +12,10 @@ ansible/inventory/proxmox.yml
 # Age private keys — never commit
 *.age
 
+# Unencrypted secret staging files — must be SOPS-encrypted before committing
+*-secrets.yaml
+*-secret.yaml
+
 # OS
 .DS_Store
 Thumbs.db

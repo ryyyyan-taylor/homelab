@@ -1,3 +1,21 @@
+# Required secret format — create, fill in values, encrypt, then commit:
+#
+#   cat > cluster-health-secrets.yaml <<EOF
+#   apiVersion: v1
+#   kind: Secret
+#   metadata:
+#     name: cluster-health-ntfy
+#     namespace: monitoring
+#   stringData:
+#     url: "https://ntfy.lab.ryantaylor.tech/<your-topic>"
+#     token: "<your-ntfy-token>"
+#   EOF
+#
+#   sops --encrypt --age age1pht0t0fr9gr8tf2vqm5y4s8lrg6g2xtql5m2xgzm4lv38mhaqfsslekwsa \
+#     --encrypted-regex '^(data|stringData)$' \
+#     --in-place cluster-health-secrets.yaml
+#   mv cluster-health-secrets.yaml cluster-health-secrets.sops.yaml
+#   git add cluster-health-secrets.sops.yaml
 apiVersion: viaduct.ai/v1
 kind: ksops
 metadata:
