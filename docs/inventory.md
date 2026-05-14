@@ -33,7 +33,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | Component | Primary | Secondary | Notes |
 |---|---|---|---|
 | Talos nodes | Cloudflare 1.1.1.1 | Pi-hole 10.0.1.160 | Prevents Pi-hole overload from affecting cluster |
-| CoreDNS | Cloudflare 1.1.1.1 | (direct, no secondary) | Forwards external queries directly; cluster.local resolved locally |
+| CoreDNS | Cloudflare 1.1.1.1 | (direct, no secondary) | 3 replicas with topology spread (1 per node); external queries go direct to Cloudflare |
 | Pi-hole | — | — | Provides `*.lab.ryantaylor.tech` wildcard DNS for external access (10.0.1.210) |
 
 **DNS resolution flow:**
