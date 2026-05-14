@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cluster-health
+  namespace: monitoring
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: cluster-health
+          restartPolicy: OnFailure
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: health-check
+              image: bitnami/kubectl:latest
+              command: ["/bin/sh", "/scripts/health-check.sh"]
+              env:
+                - name: NTFY_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: cluster-health-ntfy
+                      key: url
+                - name: NTFY_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: cluster-health-ntfy
+                      key: token
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: scripts
+              configMap:
+                name: cluster-health-scripts
+                defaultMode: 0755

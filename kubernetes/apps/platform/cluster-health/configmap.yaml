@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-health-scripts
+  namespace: monitoring
+data:
+  health-check.sh: |
+    #!/bin/sh
+    ALERTS=0
+    BODY=""
+
+    # Node readiness
+    NOT_READY=$(kubectl get nodes --no-headers 2>/dev/null | awk '$2 != "Ready" {print $1}')
+    if [ -n "$NOT_READY" ]; then
+      COUNT=$(printf '%s\n' "$NOT_READY" | wc -l | tr -d ' ')
+      BODY="${BODY}❌ ${COUNT} node(s) NotReady: $(printf '%s ' $NOT_READY)\n"
+      ALERTS=$((ALERTS + 1))
+    fi
+
+    # Control plane components
+    UNHEALTHY=$(kubectl get componentstatuses --no-headers 2>/dev/null | awk '$2 != "Healthy" {print $1": "$2}')
+    if [ -n "$UNHEALTHY" ]; then
+      BODY="${BODY}❌ Control plane unhealthy: $(printf '%s; ' $UNHEALTHY)\n"
+      ALERTS=$((ALERTS + 1))
+    fi
+
+    # kube-system pod failures
+    FAILING=$(kubectl get pods -n kube-system --no-headers 2>/dev/null | \
+      grep -E 'CrashLoopBackOff|OOMKilled|ImagePullBackOff|ErrImagePull|Error' | \
+      awk '{print $1"("$3")"}')
+    if [ -n "$FAILING" ]; then
+      COUNT=$(printf '%s\n' "$FAILING" | wc -l | tr -d ' ')
+      BODY="${BODY}❌ ${COUNT} kube-system pod(s) failing: $(printf '%s ' $FAILING)\n"
+      ALERTS=$((ALERTS + 1))
+    fi
+
+    # Alert if any issues
+    if [ "$ALERTS" -gt 0 ]; then
+      printf '%b' "$BODY" | curl -s \
+        -H "Title: Cluster Health Alert (${ALERTS} issue(s))" \
+        -H "Priority: high" \
+        -H "Tags: warning,kubernetes" \
+        -H "Authorization: Bearer ${NTFY_TOKEN}" \
+        --data-binary @- \
+        "${NTFY_URL}"
+    fi

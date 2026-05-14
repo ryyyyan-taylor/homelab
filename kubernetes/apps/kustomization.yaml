@@ -24,3 +24,4 @@ resources:
   - platform/argocd-image-updater/application.yaml
   - platform/dash-config/application.yaml
   - platform/dash/application.yaml
+  - platform/cluster-health/application.yaml
