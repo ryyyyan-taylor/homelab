@@ -16,6 +16,11 @@ ansible/inventory/proxmox.yml
 *-secrets.yaml
 *-secret.yaml
 
+# Talos machine configs — contain bootstrap secrets
+controlplane.yaml
+worker.yaml
+talosconfig
+
 # OS
 .DS_Store
 Thumbs.db
