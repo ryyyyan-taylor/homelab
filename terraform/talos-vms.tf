@@ -37,7 +37,7 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
   }
 
   disk {
-    datastore_id = "hdd"
+    datastore_id = "ssd-1"
     interface    = "virtio0"
     size         = 40
     file_format  = "raw"
@@ -91,7 +91,7 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
   }
 
   disk {
-    datastore_id = "hdd"
+    datastore_id = "ssd-1"
     interface    = "virtio0"
     size         = 60
     file_format  = "raw"
@@ -145,7 +145,7 @@ resource "proxmox_virtual_environment_vm" "talos_worker_2" {
   }
 
   disk {
-    datastore_id = "hdd"
+    datastore_id = "ssd-1"
     interface    = "virtio0"
     size         = 60
     file_format  = "raw"
