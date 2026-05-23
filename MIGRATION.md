@@ -292,7 +292,7 @@ Expected: 3 nodes (talos-cp, talos-worker-1, talos-worker-2), all STATUS=Ready. 
 - [x] Bootstrap etcd on CP: `talosctl bootstrap`
 - [x] Confirm etcd healthy: `talosctl -n 10.0.1.200 etcd status`
 - [x] Fetch kubeconfig: `talosctl kubeconfig`
-- [x] `kubectl get nodes` shows 3 Ready nodes
+- [x] `kubectl get nodes` shows 3 Ready nodes — confirmed IPs: 10.0.1.200 (CP), 10.0.1.201 (wk1), 10.0.1.202 (wk2)
 
 ---
 
