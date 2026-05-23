@@ -36,10 +36,7 @@ spec:
                   period: 24h
 
         singleBinary:
-          # TEMP: scaled to 0 to reduce disk I/O while diagnosing
-          # cluster instability (etcd fsync starvation). Revert to 1
-          # once root cause is resolved.
-          replicas: 0
+          replicas: 1
           resources:
             requests:
               cpu: 50m

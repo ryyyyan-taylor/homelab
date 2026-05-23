@@ -42,6 +42,7 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
     size         = 40
     file_format  = "raw"
     discard      = "on"
+    cache        = "writeback"
   }
 
   cdrom {
@@ -95,6 +96,7 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
     size         = 60
     file_format  = "raw"
     discard      = "on"
+    cache        = "writeback"
   }
 
   cdrom {
@@ -148,6 +150,7 @@ resource "proxmox_virtual_environment_vm" "talos_worker_2" {
     size         = 60
     file_format  = "raw"
     discard      = "on"
+    cache        = "writeback"
   }
 
   cdrom {

@@ -33,10 +33,6 @@ spec:
           ingress:
             enabled: false
           prometheusSpec:
-            # TEMP: scaled to 0 to reduce disk I/O while diagnosing
-            # cluster instability (etcd fsync starvation). Revert
-            # (delete this line) once root cause is resolved.
-            replicas: 0
             retention: 30d
             resources:
               requests:
