@@ -332,7 +332,7 @@ kubectl -n argocd rollout status deployment argocd-repo-server --timeout=300s
 
 **Create the SOPS age key secret (must exist before applying root app):**
 ```bash
-kubectl -n argocd create secret generic sops-age \
+kubectl -n argocd create secret generic ksops-age-key \
   --from-file=keys.txt=$HOME/.config/sops/age/keys.txt
 ```
 
@@ -354,7 +354,7 @@ Or via the ArgoCD UI at `https://argocd.lab.ryantaylor.tech` (available once Tra
 
 - [ ] `kubectl apply -k kubernetes/bootstrap/argocd/`
 - [ ] Wait for argocd-server and argocd-repo-server deployments to be ready
-- [ ] Create `sops-age` secret from `~/.config/sops/age/keys.txt`
+- [ ] Create `ksops-age-key` secret from `~/.config/sops/age/keys.txt`
 - [ ] `kubectl apply -f kubernetes/bootstrap/root-app.yaml`
 - [ ] Watch ArgoCD app sync — expect ~10 min for full sync of all apps
 
@@ -457,7 +457,7 @@ The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings �
     -o jsonpath="{.data.password}" | base64 -d
   ```
 
-- **sops-age secret must precede root app:** If you apply root-app.yaml before creating the `sops-age` secret, all apps with encrypted secrets will fail with `failed to decrypt`. If this happens: create the secret, then `kubectl -n argocd delete application --all` and re-apply the root app.
+- **ksops-age-key secret must precede root app:** If you apply root-app.yaml before creating the `ksops-age-key` secret, all apps with encrypted secrets will fail with `failed to decrypt`. If this happens: create the secret, then `kubectl -n argocd delete application --all` and re-apply the root app.
 
 - **Worker unreachable taints after reboot:** If a node shows `SchedulingDisabled` or pods won't schedule, clear stale taints:
   ```bash
