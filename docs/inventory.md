@@ -43,19 +43,20 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 
 ## Storage
 
-| Pool | VG | Total | Used by |
+| Pool | Type | Used by | Notes |
 |---|---|---|---|
-| `data` | `pve` | ~58 GB | All existing LXCs |
-| `ssd` | `ssd` | ~219 GB | Talos VMs |
-| `old-hdd` | — | — | Filesystem mount only; not Proxmox storage |
+| `data` | LVM-thin (`pve` VG) | All LXCs | ~58 GB |
+| `ssd-1` | LVM-thin | Talos VM disks | Intel 2500 Pro SSD; ~219 GB |
+| `ssd-2` | LVM-thin (not yet provisioned) | Future backups / redundancy | Intel 2500 Pro SSD; LVM VG must be created before adding as Proxmox storage |
+| `old-hdd` | Directory | — | Filesystem mount only; not a Proxmox storage pool |
 
 ## Talos Cluster (VMs)
 
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
-| 200 | talos-cp-200 | `10.0.1.200` | control-plane | 2 | 6 GB | 40 GB on `ssd` |
-| 201 | talos-wk-201 | `10.0.1.201` | worker | 4 | 4 GB | 60 GB on `ssd` |
-| 202 | talos-wk-202 | `10.0.1.202` | worker | 4 | 4 GB | 60 GB on `ssd` |
+| 200 | talos-cp | `10.0.1.200` | control-plane | 2 | 6 GB (no balloon) | 40 GB on `ssd-1`, `cache=writeback` |
+| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 4–6 GB (balloon) | 60 GB on `ssd-1`, `cache=writeback` |
+| 202 | talos-worker-2 | `10.0.1.202` | worker | 4 | 4–6 GB (balloon) | 60 GB on `ssd-1`, `cache=writeback` |
 
 - Talos v1.13.0, Kubernetes v1.36.0
 - Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted)
@@ -389,12 +390,14 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Talos secrets | `kubernetes/talos/secrets.sops.yaml` | Cluster bootstrap secrets |
 | Authentik secrets | `authentik-config/authentik-secrets.sops.yaml` | secret-key + postgres passwords |
 
-## One-manual-step Rebuild
+## Cluster Rebuild
 
-To rebuild the cluster from scratch:
+See `MIGRATION.md` in the repo root for the full step-by-step rebuild guide. High-level order:
 
-1. Provision Talos VMs via Terraform
-2. Apply Talos config: `talosctl apply-config ...`
-3. Import age private key into cluster: `kubectl -n argocd create secret generic ksops-age-key --from-file=keys.txt=~/.config/sops/age/keys.txt`
-4. Bootstrap ArgoCD: `kubectl apply -f kubernetes/bootstrap/`
-5. ArgoCD syncs everything in wave order automatically
+1. Terraform destroy + apply Talos VMs (use `-target` for the 3 VM resources)
+2. Generate fresh Talos secrets + machine configs, SOPS-encrypt, commit
+3. `talosctl apply-config --insecure` to each node, then `talosctl bootstrap`
+4. `kubectl apply -k kubernetes/bootstrap/argocd/` — install ArgoCD with KSOPS CMP
+5. `kubectl -n argocd create secret generic ksops-age-key --from-file=keys.txt=~/.config/sops/age/keys.txt`
+6. `kubectl apply -f kubernetes/bootstrap/root-app.yaml` — ArgoCD syncs all apps in wave order
+7. Reconfigure Authentik (postgres PV is lost on rebuild — ~10 min of UI work)
