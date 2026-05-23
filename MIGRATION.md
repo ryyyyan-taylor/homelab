@@ -46,18 +46,18 @@ All ArgoCD apps, Kustomize overlays, and SOPS-encrypted secrets survive unchange
 | `kubernetes/talos/talosconfig` | `talosctl` credentials for this cluster |
 | `kubernetes/bootstrap/argocd/kustomization.yaml` | ArgoCD install + KSOPS CMP config |
 | `kubernetes/bootstrap/root-app.yaml` | Root ArgoCD Application |
-| `kubernetes/apps/platform/monitoring/application.yaml` | Contains `replicas: 0` TEMP marker |
-| `kubernetes/apps/platform/loki/application.yaml` | Contains `replicas: 0` TEMP marker |
+| `kubernetes/apps/platform/monitoring/application.yaml` | Prometheus app — `replicas: 0` marker removed |
+| `kubernetes/apps/platform/loki/application.yaml` | Loki app — `replicas: 0` marker removed |
 
 ---
 
 ## Phase 0: Pre-flight
 
-- [ ] Verify age private key is present: `ls -la ~/.config/sops/age/keys.txt`
-- [ ] Verify age key decrypts a known secret: `sops -d kubernetes/apps/platform/monitoring-config/ntfy-secret.sops.yaml`
-- [ ] Confirm Talos ISO is present in Proxmox: Proxmox UI → rt → local → ISO Images → `talos-metal-amd64.iso`
-- [ ] Check Let's Encrypt rate limit window — cert-manager will re-issue all certs on first sync. Limit is 50 certs/week per registered domain. We have ~10 certs. Safe if not rebuilding twice in the same week.
-- [ ] Note data that will be lost on rebuild:
+- [x] Verify age private key is present: `ls -la ~/.config/sops/age/keys.txt`
+- [x] Verify age key decrypts a known secret: `sops -d kubernetes/apps/platform/monitoring-config/ntfy-secret.sops.yaml`
+- [x] Confirm Talos ISO is present in Proxmox: Proxmox UI → rt → local → ISO Images → `talos-metal-amd64.iso`
+- [x] Check Let's Encrypt rate limit window — cert-manager will re-issue all certs on first sync. Limit is 50 certs/week per registered domain. We have ~10 certs. Safe if not rebuilding twice in the same week.
+- [x] Note data that will be lost on rebuild:
   - **Authentik postgres PV** — Authentik user/group/provider config will need to be redone after bootstrap. It's ~10 minutes of UI work.
   - **Prometheus + Loki PV data** — these are scaled to 0 in git anyway; no meaningful history to preserve.
   - Everything else either lives in git (ArgoCD apps) or in SOPS-encrypted secrets.
@@ -95,8 +95,8 @@ disk {
 
 Same change for both workers (size = 60 for workers).
 
-- [ ] Edit `terraform/talos-vms.tf` — add `cache = "writeback"` to all three disk blocks
-- [ ] Commit: `git commit -m "feat: add writeback cache to Talos VM disks"`
+- [x] Edit `terraform/talos-vms.tf` — add `cache = "writeback"` to all three disk blocks
+- [x] Commit: `git commit -m "feat: add writeback cache to Talos VM disks"`
 
 ---
 
@@ -116,8 +116,8 @@ terraform destroy \
 
 Terraform will show a plan destroying 3 VMs. Type `yes` to confirm.
 
-- [ ] Run `terraform destroy -target` for all 3 Talos VMs
-- [ ] Verify in Proxmox UI that VMs 200, 201, 202 are gone
+- [x] Run `terraform destroy -target` for all 3 Talos VMs
+- [x] Verify in Proxmox UI that VMs 200, 201, 202 are gone
 
 ---
 
@@ -134,9 +134,9 @@ terraform apply \
 
 This creates 3 VMs booted from the Talos ISO in maintenance mode. They will have `started = false` per the Terraform config — you will need to start them manually.
 
-- [ ] Run `terraform apply -target` for all 3 Talos VMs
-- [ ] In Proxmox UI, start VM 200 (talos-cp), then 201 and 202 (workers)
-- [ ] Verify each VM shows as running in Proxmox UI
+- [x] Run `terraform apply -target` for all 3 Talos VMs
+- [x] In Proxmox UI, start VM 200 (talos-cp), then 201 and 202 (workers)
+- [x] Verify each VM shows as running in Proxmox UI
 
 **Maintenance mode IP discovery:**
 
@@ -152,7 +152,7 @@ arp-scan --interface=vmbr0 --localnet 2>/dev/null | grep -v "DUP"
 
 Note the maintenance-mode IPs for each VM — you'll need them in Phase 5 if the static IPs aren't already assigned via DHCP reservation.
 
-- [ ] Boot all 3 VMs and record their maintenance-mode IPs (or confirm 10.0.1.200–202 are reachable)
+- [x] Boot all 3 VMs and record their maintenance-mode IPs (CP: 10.0.1.122, wk1: 10.0.1.141, wk2: 10.0.1.114)
 
 ---
 
@@ -219,15 +219,15 @@ git add kubernetes/talos/
 git commit -m "feat: regenerate Talos cluster secrets and machine configs"
 ```
 
-- [ ] Generate fresh secrets to `/tmp/talos-secrets-new.yaml`
-- [ ] Generate base configs to `/tmp/talos-gen/`
-- [ ] Patch CP config → `kubernetes/talos/talos-cp.yaml`
-- [ ] Patch worker-1 config → `kubernetes/talos/talos-worker-1.yaml`
-- [ ] Patch worker-2 config → `kubernetes/talos/talos-worker-2.yaml`
-- [ ] Copy base `controlplane.yaml`, `worker.yaml`, `talosconfig` into `kubernetes/talos/`
-- [ ] SOPS-encrypt secrets in-place, verify file starts with `sops:` metadata
-- [ ] Remove plaintext `/tmp/talos-secrets-new.yaml` — do not leave it on disk
-- [ ] Commit all changes in `kubernetes/talos/`
+- [x] Generate fresh secrets to `/tmp/talos-secrets-new.yaml`
+- [x] Generate base configs to `/tmp/talos-gen/`
+- [x] Patch CP config → `kubernetes/talos/talos-cp.yaml`
+- [x] Patch worker-1 config → `kubernetes/talos/talos-worker-1.yaml`
+- [x] Patch worker-2 config → `kubernetes/talos/talos-worker-2.yaml`
+- [x] Copy base `controlplane.yaml`, `worker.yaml`, `talosconfig` into `kubernetes/talos/`
+- [x] SOPS-encrypt secrets in-place, verify file starts with `sops:` metadata
+- [x] Remove plaintext `/tmp/talos-secrets-new.yaml` — do not leave it on disk
+- [x] Commit all changes in `kubernetes/talos/`
 
 ---
 
@@ -285,14 +285,14 @@ kubectl get nodes -o wide
 
 Expected: 3 nodes (talos-cp, talos-worker-1, talos-worker-2), all STATUS=Ready. Workers may take 2–3 minutes longer than the CP to register.
 
-- [ ] Apply machine config to CP (talos-cp, 10.0.1.200)
-- [ ] Apply machine config to worker-1 (10.0.1.201)
-- [ ] Apply machine config to worker-2 (10.0.1.202)
-- [ ] Wait for VMs to reboot and install Talos (~2 min per node)
-- [ ] Bootstrap etcd on CP: `talosctl bootstrap`
-- [ ] Confirm etcd healthy: `talosctl -n 10.0.1.200 etcd status`
-- [ ] Fetch kubeconfig: `talosctl kubeconfig`
-- [ ] `kubectl get nodes` shows 3 Ready nodes
+- [x] Apply machine config to CP (maintenance IP 10.0.1.122)
+- [x] Apply machine config to worker-1 (maintenance IP 10.0.1.141)
+- [x] Apply machine config to worker-2 (maintenance IP 10.0.1.114)
+- [x] Wait for VMs to reboot and install Talos (~2 min per node)
+- [x] Bootstrap etcd on CP: `talosctl bootstrap`
+- [x] Confirm etcd healthy: `talosctl -n 10.0.1.200 etcd status`
+- [x] Fetch kubeconfig: `talosctl kubeconfig`
+- [x] `kubectl get nodes` shows 3 Ready nodes
 
 ---
 
@@ -308,10 +308,10 @@ grep -n "replicas" kubernetes/apps/platform/loki/application.yaml
 
 Edit both files to remove the `replicas: 0` override (or set `replicas: 1`). The exact change depends on how the scale-down was applied — look for any `replicas: 0` in the HelmRelease values or ArgoCD Application spec and revert it.
 
-- [ ] Revert `replicas: 0` in `kubernetes/apps/platform/monitoring/application.yaml`
-- [ ] Revert `replicas: 0` in `kubernetes/apps/platform/loki/application.yaml`
-- [ ] Commit: `git commit -m "chore: revert temporary Prometheus and Loki scale-down"`
-- [ ] Push to main so ArgoCD can pull it on first sync
+- [x] Revert `replicas: 0` in `kubernetes/apps/platform/monitoring/application.yaml`
+- [x] Revert `replicas: 0` in `kubernetes/apps/platform/loki/application.yaml`
+- [x] Commit: `git commit -m "chore: revert temporary Prometheus and Loki scale-down"`
+- [x] Push to main so ArgoCD can pull it on first sync
 
 ---
 
@@ -352,11 +352,11 @@ kubectl -n argocd get applications --watch
 
 Or via the ArgoCD UI at `https://argocd.lab.ryantaylor.tech` (available once Traefik and MetalLB sync up — may take a few minutes).
 
-- [ ] `kubectl apply -k kubernetes/bootstrap/argocd/`
-- [ ] Wait for argocd-server and argocd-repo-server deployments to be ready
-- [ ] Create `ksops-age-key` secret from `~/.config/sops/age/keys.txt`
-- [ ] `kubectl apply -f kubernetes/bootstrap/root-app.yaml`
-- [ ] Watch ArgoCD app sync — expect ~10 min for full sync of all apps
+- [x] `kubectl apply -k kubernetes/bootstrap/argocd/`
+- [x] Wait for argocd-server and argocd-repo-server deployments to be ready
+- [x] Create `ksops-age-key` secret from `~/.config/sops/age/keys.txt`
+- [x] `kubectl apply -f kubernetes/bootstrap/root-app.yaml`
+- [ ] Watch ArgoCD app sync — expect ~10 min for full sync of all apps ← **RESUME HERE**
 
 ---
 
@@ -466,3 +466,13 @@ The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings �
   ```
 
 - **TLS cert rate limits:** cert-manager re-issues all certs on first sync. Let's Encrypt allows 50 certs/week per registered domain. We have ~10 certs. Safe for one rebuild, but don't destroy and rebuild twice in the same week.
+
+- **ssd-2 stale storage pool blocks VM deletion:** If `ssd-2` is defined as a Proxmox LVM-thin storage pool but its VG doesn't exist on disk, every `qm destroy` will fail with `no such logical volume ssd-2/ssd-2`. Fix: `pvesm remove ssd-2` on the Proxmox host before destroying VMs. Re-add it later once the LVM VG is provisioned.
+
+- **Terraform `datastore_id` must match actual Proxmox storage pool name:** The pool is `ssd-1`, not `hdd`. If Terraform errors with `storage 'hdd' does not exist`, update `datastore_id` in `talos-vms.tf`.
+
+- **`argocd` namespace must exist before `kubectl apply -k`:** The bootstrap kustomization sets `namespace: argocd` but doesn't create the namespace. Run `kubectl create namespace argocd` first, then apply.
+
+- **`talosconfig` endpoints are empty after `talosctl gen config`:** Run `talosctl --talosconfig kubernetes/talos/talosconfig config endpoint 10.0.1.200` before any `talosctl` commands that need to reach the cluster.
+
+- **kubeconfig context renamed on fetch:** If a `talos-homelab` context already exists in `~/.kube/config`, `talosctl kubeconfig` renames the new one to `talos-homelab-1`. Switch to it: `kubectl config use-context admin@talos-homelab-1`.
