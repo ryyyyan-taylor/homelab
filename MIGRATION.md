@@ -376,7 +376,7 @@ Run through this checklist after ArgoCD reports all apps Synced.
 
 **Networking:**
 - [x] MetalLB has assigned external IPs: Traefik on 10.0.1.210
-- [ ] DNS resolution works from inside a pod: `kubectl run -it --rm dns-test --image=busybox --restart=Never -- nslookup kubernetes.default.svc.cluster.local`
+- [x] DNS resolution works from inside a pod: `kubectl run -it --rm dns-test --image=busybox --restart=Never -- nslookup kubernetes.default.svc.cluster.local`
 - [x] Pi-hole is still resolving `*.lab.ryantaylor.tech`
 
 **TLS:**
@@ -393,13 +393,13 @@ Run through this checklist after ArgoCD reports all apps Synced.
 - [x] `https://uptime.lab.ryantaylor.tech`
 
 **Observability:**
-- [ ] Prometheus scraping cluster targets: `https://prometheus.lab.ryantaylor.tech/targets` — all green
-- [ ] Grafana loads dashboards
-- [ ] Loki is receiving logs: verify in Grafana Explore → Loki
+- [x] Prometheus scraping cluster targets: 25 UP, 3 DOWN (corekeeper/minecraft/terraria — intentionally stopped, filtered via `lxc_active` label)
+- [x] Grafana loads dashboards
+- [x] Loki is receiving logs: verified in Grafana Explore → Loki
 
 **Cluster health CronJob:**
 - [x] Triggered automatically — job completed, check ntfy on phone
-- [ ] Confirm ntfy notification arrived on phone
+- [x] Confirm ntfy notification arrived on phone
 
 ---
 
@@ -426,6 +426,7 @@ The link expires in 1 minute. Open it immediately to land in the admin UI as `ak
 - [x] Test LXC SSH auth: `ssh rt@10.0.1.151` (corekeeper) — confirmed working
 - [x] Create Proxy Provider for Traefik forward-auth: **Applications → Providers → Proxy Provider**, mode **Forward Auth (domain level)**, cookie domain `lab.ryantaylor.tech`
 - [x] Create Application for the proxy provider: name `Homelab`, slug `homelab`, provider `traefik-forwardauth`
+- [x] Add the application to the embedded outpost: **Applications → Outposts → Edit** the `authentik Embedded Outpost`, move the application from Available to Selected
 
 ### 9.2 — Add `ghcr-credentials` secret for Image Updater
 
@@ -494,6 +495,8 @@ The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings �
 - **Authentik bootstrap password not in logs (2026.x):** The `ak create_recovery_key` command is the only reliable way to get initial access. See Phase 9.1 for the exact command.
 
 - **Grafana/Prometheus use Authentik Proxy Provider, not OAuth2:** Both services use `auth.proxy` mode in Grafana (trusting the `X-Authentik-Username` header from Traefik forward-auth). In Authentik, configure a **Proxy Provider** in **Forward Auth (domain level)** mode for `lab.ryantaylor.tech`, not an OAuth2 provider.
+
+- **Proxy Provider must be assigned to the Embedded Outpost:** Creating the Provider and Application is not enough. You must also edit the `authentik Embedded Outpost` (Applications → Outposts) and move the application to Selected. Until this is done, ForwardAuth requests return "Not Found — Powered by authentik" even for authenticated users.
 
 - **LDAP outpost token must be updated after every cluster rebuild:** The `authentik-ldap-outpost-token` SOPS secret is tied to a specific Authentik database. After a rebuild, create a new outpost in Authentik, copy its service-account token, update `kubernetes/apps/platform/authentik-config/ldap-outpost-token.sops.yaml`, and commit. Then restart the outpost deployment to pick up the new token.
 
