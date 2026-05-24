@@ -10,7 +10,7 @@ spec:
     - name: lxc
       rules:
         - alert: LxcNodeExporterDown
-          expr: up{job="lxc-node-exporter"} == 0
+          expr: up{job="lxc-node-exporter", lxc_active="true"} == 0
           for: 5m
           labels:
             severity: warning

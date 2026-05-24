@@ -77,18 +77,23 @@ spec:
                   - targets: ['10.0.1.151:9100']
                     labels:
                       hostname: corekeeper
+                      lxc_active: "false"
                   - targets: ['10.0.1.152:9100']
                     labels:
                       hostname: minecraft
+                      lxc_active: "false"
                   - targets: ['10.0.1.153:9100']
                     labels:
                       hostname: terraria
+                      lxc_active: "false"
                   - targets: ['10.0.1.160:9100']
                     labels:
                       hostname: pihole
+                      lxc_active: "true"
                   - targets: ['10.0.1.161:9100']
                     labels:
                       hostname: network
+                      lxc_active: "true"
 
         # Alertmanager
         alertmanager:
