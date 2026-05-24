@@ -356,7 +356,7 @@ Or via the ArgoCD UI at `https://argocd.lab.ryantaylor.tech` (available once Tra
 - [x] Wait for argocd-server and argocd-repo-server deployments to be ready
 - [x] Create `ksops-age-key` secret from `~/.config/sops/age/keys.txt`
 - [x] `kubectl apply -f kubernetes/bootstrap/root-app.yaml`
-- [ ] Watch ArgoCD app sync — expect ~10 min for full sync of all apps ← **RESUME HERE**
+- [x] Watch ArgoCD app sync — all apps Synced + Healthy
 
 ---
 
@@ -365,42 +365,41 @@ Or via the ArgoCD UI at `https://argocd.lab.ryantaylor.tech` (available once Tra
 Run through this checklist after ArgoCD reports all apps Synced.
 
 **Cluster health:**
-- [ ] `kubectl get nodes -o wide` — all 3 nodes Ready, correct IPs
-- [ ] `talosctl --talosconfig kubernetes/talos/talosconfig -n 10.0.1.200 etcd status` — etcd healthy, 1 member
-- [ ] `kubectl -n kube-system get pods` — all system pods Running, no restarts
+- [x] `kubectl get nodes -o wide` — all 3 nodes Ready, correct IPs
+- [x] `talosctl --talosconfig kubernetes/talos/talosconfig -n 10.0.1.200 etcd status` — etcd healthy, 1 member
+- [x] `kubectl -n kube-system get pods` — all system pods Running, no restarts
 - [ ] After 30 min: `kubectl -n kube-system get deployment kube-controller-manager kube-scheduler` — restart count stays at 0 (the etcd stability signal)
 
 **ArgoCD:**
-- [ ] All apps show `Synced` + `Healthy` in ArgoCD UI
-- [ ] No apps stuck in `Degraded` or `OutOfSync`
+- [x] All apps show `Synced` + `Healthy` in ArgoCD UI
+- [x] No apps stuck in `Degraded` or `OutOfSync` (coredns-config and metrics-server show `Unknown` health — both benign, see Gotchas)
 
 **Networking:**
-- [ ] MetalLB has assigned external IPs: `kubectl get svc -A | grep LoadBalancer`
+- [x] MetalLB has assigned external IPs: Traefik on 10.0.1.210
 - [ ] DNS resolution works from inside a pod: `kubectl run -it --rm dns-test --image=busybox --restart=Never -- nslookup kubernetes.default.svc.cluster.local`
-- [ ] Pi-hole is still resolving `*.lab.ryantaylor.tech` (it's an LXC, so unaffected by the rebuild)
+- [x] Pi-hole is still resolving `*.lab.ryantaylor.tech`
 
 **TLS:**
-- [ ] cert-manager has issued certificates: `kubectl get certificates -A`
-- [ ] All certs show `READY=True`
+- [x] cert-manager has issued certificates: `kubectl get certificates -A`
+- [x] All certs show `READY=True`
 
 **App URLs (open each in browser):**
-- [ ] `https://argocd.lab.ryantaylor.tech`
-- [ ] `https://grafana.lab.ryantaylor.tech`
-- [ ] `https://prometheus.lab.ryantaylor.tech`
-- [ ] `https://dash.lab.ryantaylor.tech`
-- [ ] `https://authentik.lab.ryantaylor.tech` (Authentik will need reconfig — see Phase 9)
-- [ ] `https://homepage.lab.ryantaylor.tech`
-- [ ] `https://uptime.lab.ryantaylor.tech`
+- [x] `https://argocd.lab.ryantaylor.tech`
+- [x] `https://grafana.lab.ryantaylor.tech` (proxied via Authentik forward-auth)
+- [x] `https://prometheus.lab.ryantaylor.tech` (proxied via Authentik forward-auth)
+- [x] `https://dash.lab.ryantaylor.tech`
+- [x] `https://authentik.lab.ryantaylor.tech`
+- [x] `https://lab.ryantaylor.tech` (homepage — apex domain, not a subdomain)
+- [x] `https://uptime.lab.ryantaylor.tech`
 
 **Observability:**
 - [ ] Prometheus scraping cluster targets: `https://prometheus.lab.ryantaylor.tech/targets` — all green
-- [ ] Grafana loads dashboards (may need re-login; Authentik SSO won't work until Phase 9)
+- [ ] Grafana loads dashboards
 - [ ] Loki is receiving logs: verify in Grafana Explore → Loki
 
 **Cluster health CronJob:**
-- [ ] Manually trigger: `kubectl create job --from=cronjob/cluster-health-check -n monitoring cluster-health-test`
-- [ ] Check logs: `kubectl logs -n monitoring -l job-name=cluster-health-test`
-- [ ] Confirm ntfy notification arrives on phone
+- [x] Triggered automatically — job completed, check ntfy on phone
+- [ ] Confirm ntfy notification arrived on phone
 
 ---
 
@@ -410,16 +409,23 @@ Run through this checklist after ArgoCD reports all apps Synced.
 
 Authentik's postgres data is on a PV that was wiped with the old cluster. The application is running but has no users/groups/providers configured. Do this via the Authentik UI at `https://authentik.lab.ryantaylor.tech`.
 
-- [ ] Log in with the default admin credentials (check Authentik pod logs for the initial password: `kubectl -n authentik logs -l app.kubernetes.io/name=authentik --tail=50 | grep password`)
-- [ ] Create user `rt` (or your primary user) and set password
-- [ ] Create group `lxc-admins`
-- [ ] Add user to group
-- [ ] Recreate the LDAP outpost (needed for LXC SSH auth via SSSD):
-  - Create LDAP provider
-  - Create LDAP outpost pointing at the provider
-  - Verify the LDAP outpost IP matches what's in `ansible/group_vars/all/vars.yml` (`ldap://10.0.1.210`)
-- [ ] Test LXC SSH auth: `ssh rt@10.0.1.151` (corekeeper) — should authenticate via LDAP
-- [ ] Recreate any OAuth2/OIDC providers that were configured (Grafana is the one already wired)
+**Getting in:** Authentik 2026.x does not print the bootstrap password to logs. Generate a recovery link from the worker pod:
+```bash
+kubectl -n authentik exec -l app.kubernetes.io/name=authentik,app.kubernetes.io/component=worker -- ak create_recovery_key 1 akadmin
+```
+The link expires in 1 minute. Open it immediately to land in the admin UI as `akadmin`.
+
+- [x] Log in via recovery key and set a password for `akadmin`
+- [x] Create user `rt` and set password
+- [x] Create group `lxc-admins`
+- [x] Add `rt` to `lxc-admins`
+- [x] Create LDAP provider: **Applications → Providers → LDAP Provider**, Base DN: `dc=ldap,dc=goauthentik,dc=io`
+- [x] Create LDAP application: **Applications → Applications**, slug `ldap`, provider `ldap`
+- [x] Create LDAP outpost: **Applications → Outposts**, type LDAP, application `ldap`, no Kubernetes integration (ArgoCD manages the deployment)
+- [x] Copy outpost service-account token from the outpost view, update `kubernetes/apps/platform/authentik-config/ldap-outpost-token.sops.yaml` with new token, commit and push — ArgoCD will sync the secret, then restart the outpost deployment
+- [x] Test LXC SSH auth: `ssh rt@10.0.1.151` (corekeeper) — confirmed working
+- [x] Create Proxy Provider for Traefik forward-auth: **Applications → Providers → Proxy Provider**, mode **Forward Auth (domain level)**, cookie domain `lab.ryantaylor.tech`
+- [x] Create Application for the proxy provider: name `Homelab`, slug `homelab`, provider `traefik-forwardauth`
 
 ### 9.2 — Add `ghcr-credentials` secret for Image Updater
 
@@ -476,3 +482,21 @@ The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings �
 - **`talosconfig` endpoints are empty after `talosctl gen config`:** Run `talosctl --talosconfig kubernetes/talos/talosconfig config endpoint 10.0.1.200` before any `talosctl` commands that need to reach the cluster.
 
 - **kubeconfig context renamed on fetch:** If a `talos-homelab` context already exists in `~/.kube/config`, `talosctl kubeconfig` renames the new one to `talos-homelab-1`. Switch to it: `kubectl config use-context admin@talos-homelab-1`.
+
+- **argocd-repo-server OOMKilled at 256Mi:** The repo-server default limit is too low for KSOPS manifest generation with many apps. Bumped to 512Mi in `kubernetes/bootstrap/argocd/repo-server-patch.yaml`. Re-apply bootstrap after any change: `kubectl apply -k kubernetes/bootstrap/argocd/`.
+
+- **ksops-cmp sidecar OOMKilled at 64Mi:** The KSOPS sidecar runs `kustomize build --enable-alpha-plugins --enable-exec` which spikes memory during SOPS decryption. Bumped to 256Mi in `repo-server-patch.yaml`.
+
+- **ksops socket takes ~10 min on first pod start:** The `ksops-cmp` sidecar creates its Unix socket slowly on first boot. The repo-server discovers plugins at startup — if the socket isn't there yet, it falls back to plain kustomize and all KSOPS apps fail with `external plugins disabled`. Fix: after the socket appears, delete the repo-server pod so it restarts and discovers the socket cleanly. On subsequent starts the socket appears in seconds.
+
+- **Homepage is at the apex domain:** The homepage IngressRoute matches `Host('lab.ryantaylor.tech')`, not `Host('homepage.lab.ryantaylor.tech')`. Access it at `https://lab.ryantaylor.tech`.
+
+- **Authentik bootstrap password not in logs (2026.x):** The `ak create_recovery_key` command is the only reliable way to get initial access. See Phase 9.1 for the exact command.
+
+- **Grafana/Prometheus use Authentik Proxy Provider, not OAuth2:** Both services use `auth.proxy` mode in Grafana (trusting the `X-Authentik-Username` header from Traefik forward-auth). In Authentik, configure a **Proxy Provider** in **Forward Auth (domain level)** mode for `lab.ryantaylor.tech`, not an OAuth2 provider.
+
+- **LDAP outpost token must be updated after every cluster rebuild:** The `authentik-ldap-outpost-token` SOPS secret is tied to a specific Authentik database. After a rebuild, create a new outpost in Authentik, copy its service-account token, update `kubernetes/apps/platform/authentik-config/ldap-outpost-token.sops.yaml`, and commit. Then restart the outpost deployment to pick up the new token.
+
+- **Router DNS must point to Pi-hole:** If your router's DNS was changed away from 10.0.1.100 (Pi-hole) during the rebuild (e.g. to avoid taking down the network), `*.lab.ryantaylor.tech` will not resolve from client machines. Switch it back before testing app URLs.
+
+- **coredns-config and metrics-server show `Unknown` in ArgoCD:** Both are benign. `coredns-config` uses a kustomize strategic merge patch against a Talos-managed resource that isn't in its `resources:` list — kustomize v5 can't patch it, but CoreDNS itself runs fine. `metrics-server` has a schema drift in a status field that ArgoCD can't diff — metrics-server itself is Healthy.
