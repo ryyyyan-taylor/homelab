@@ -445,8 +445,8 @@ The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings �
 
 ### 9.3 — Update inventory doc
 
-- [ ] Verify `docs/inventory.md` reflects the current cluster state (node IPs, Talos version, K8s version)
-- [ ] Update GitHub wiki if anything changed: edit `~/Code/homelab.wiki/`, commit, push
+- [x] Verify `docs/inventory.md` reflects the current cluster state (node IPs, Talos version, K8s version)
+- [x] Update GitHub wiki if anything changed: edit `~/Code/homelab.wiki/`, commit, push
 
 ---
 
