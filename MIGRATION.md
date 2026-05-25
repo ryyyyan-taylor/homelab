@@ -368,7 +368,7 @@ Run through this checklist after ArgoCD reports all apps Synced.
 - [x] `kubectl get nodes -o wide` — all 3 nodes Ready, correct IPs
 - [x] `talosctl --talosconfig kubernetes/talos/talosconfig -n 10.0.1.200 etcd status` — etcd healthy, 1 member
 - [x] `kubectl -n kube-system get pods` — all system pods Running, no restarts
-- [ ] After 30 min: `kubectl -n kube-system get deployment kube-controller-manager kube-scheduler` — restart count stays at 0 (the etcd stability signal)
+- [x] After 30 min: `kubectl -n kube-system get deployment kube-controller-manager kube-scheduler` — restart count stays at 0 (the etcd stability signal) — 2/3 restarts at bootstrap only, stable for 38h+
 
 **ArgoCD:**
 - [x] All apps show `Synced` + `Healthy` in ArgoCD UI
