@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  url: "https://argocd.lab.ryantaylor.tech"
+  oidc.config: |
+    name: Authentik
+    issuer: https://authentik.lab.ryantaylor.tech/application/o/argocd/
+    clientID: xbs2gD07ycch7lvHuWj0UFeYMei6tNOajHREBoMD
+    clientSecret: $oidc.authentik.clientSecret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
