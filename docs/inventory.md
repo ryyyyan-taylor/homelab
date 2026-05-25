@@ -33,11 +33,11 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | Component | Primary | Secondary | Notes |
 |---|---|---|---|
 | Talos nodes | Cloudflare 1.1.1.1 | Pi-hole 10.0.1.160 | Prevents Pi-hole overload from affecting cluster |
-| CoreDNS | Cloudflare 1.1.1.1 | (direct, no secondary) | 3 replicas with topology spread (1 per node); external queries go direct to Cloudflare |
+| CoreDNS | Pi-hole 10.0.1.160 (for `lab.ryantaylor.tech`), Cloudflare 1.1.1.1 (all else) | (direct, no secondary) | 4 replicas with topology spread; `lab.ryantaylor.tech` forwarded to Pi-hole so in-cluster pods resolve internal subdomains |
 | Pi-hole | — | — | Provides `*.lab.ryantaylor.tech` wildcard DNS for external access (10.0.1.210) |
 
 **DNS resolution flow:**
-- **Inside cluster pods**: CoreDNS → local resolution for cluster.local, direct Cloudflare for external
+- **Inside cluster pods**: CoreDNS → Pi-hole for `*.lab.ryantaylor.tech`, local for `cluster.local`, Cloudflare for everything else
 - **Node system DNS**: systemd-resolved → Cloudflare primary, Pi-hole secondary
 - **External (Proxmox/network)**: Pi-hole → resolves `*.lab.ryantaylor.tech` to VIP
 
@@ -97,9 +97,11 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | | |
 |---|---|
 | Namespace | `argocd` |
-| URL | `https://argocd.lab.ryantaylor.tech` *(to be added)* |
+| URL | `https://argocd.lab.ryantaylor.tech` |
 | Bootstrap | `kubectl apply -f kubernetes/bootstrap/` |
 | App config | `kubernetes/apps/` (app-of-apps via `root-app.yaml`) |
+| SSO | Authentik OIDC — local `admin` account disabled; `lxc-admins` group → `role:admin` |
+| OIDC config | `argocd-config/argocd-cm-oidc.yaml`; client secret in `argocd-config/argocd-oidc-secret.sops.yaml` |
 
 ### Sync Wave Order
 
@@ -114,8 +116,10 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 6 | local-path-provisioner | `local-path-storage` | Default StorageClass for PVCs |
 | 7 | authentik-config | `authentik` | SOPS secrets + Authentik IngressRoute |
 | 8 | authentik | `authentik` | SSO provider (Helm) |
+| 9 | argocd-config | `argocd` | ArgoCD OIDC config + RBAC (manages `argocd-cm`, `argocd-rbac-cm`, OIDC client secret) |
 | 9 | whoami | `whoami` | SSO smoke-test app |
 | 10 | ntfy | `ntfy` | Push notifications (Alertmanager target) |
+| 10 | pihole-proxy | `traefik` | Traefik IngressRoute + Service/Endpoints for Pi-hole SSO proxy |
 | 11 | metrics-server | `kube-system` | metrics.k8s.io API — enables kubectl top + Homepage kubernetes widget |
 | 11 | monitoring-config | `monitoring` | SOPS secrets + IngressRoutes for monitoring stack |
 | 12 | monitoring | `monitoring` | kube-prometheus-stack (Prometheus + Grafana + Alertmanager) |
@@ -364,7 +368,8 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Version | v6 |
 | IP | `10.0.1.160` |
 | DNS port | :53 (host networking) |
-| Web UI | `http://10.0.1.160/admin` |
+| Web UI | `https://pihole.lab.ryantaylor.tech/admin` |
+| Auth | Authentik forward-auth (`pihole-proxy` app) — built-in admin password disabled |
 | Wildcard DNS | `address=/.lab.ryantaylor.tech/10.0.1.210` |
 | DNS config method | Pi-hole v6 FTL CLI — `/etc/dnsmasq.d/` is ignored in v6 |
 
