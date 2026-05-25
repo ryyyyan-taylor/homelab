@@ -440,8 +440,8 @@ kubectl -n argocd create secret generic ghcr-credentials \
 
 The GitHub PAT needs `read:packages` scope. Create one at GitHub → Settings → Developer settings → Personal access tokens.
 
-- [ ] Create `ghcr-credentials` secret in `argocd` namespace
-- [ ] Verify Image Updater can now pull: check `kubectl -n argocd logs -l app.kubernetes.io/name=argocd-image-updater --tail=50`
+- [x] Create `ghcr-credentials` secret in `argocd` namespace
+- [x] Verify Image Updater can now pull: check `kubectl -n argocd logs -l app.kubernetes.io/name=argocd-image-updater --tail=50`
 
 ### 9.3 — Update inventory doc
 

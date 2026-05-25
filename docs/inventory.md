@@ -124,6 +124,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 15 | promtail | `loki` | Promtail DaemonSet — cluster pod logs → Loki |
 | 16 | uptime-kuma | `uptime-kuma` | Synthetic uptime checks for all services |
 | 17 | homepage | `homepage` | Dashboard landing page at `lab.ryantaylor.tech` |
+| 1 | argocd-image-updater | `argocd` | Watches image registries and auto-updates app image tags |
 
 ### cert-manager
 
@@ -330,6 +331,18 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Storage | 2Gi PVC on `local-path` at `/app/data` (SQLite) |
 | Notes | Auth is Uptime Kuma's own login — no Authentik forward-auth. Status pages are publicly accessible. |
 
+### ArgoCD Image Updater
+
+| | |
+|---|---|
+| Version | 1.1.5 (chart), v1.1.1 (app) |
+| Namespace | `argocd` |
+| Helm repo | `https://argoproj.github.io/argo-helm` |
+| Purpose | Watches ghcr.io for new image tags and commits updated tag back to repo (or updates live ArgoCD apps) |
+| Registry | `ghcr.io` — credentials from `argocd/ghcr-credentials` Secret (not in repo — create manually after rebuild) |
+| Credentials secret | `kubectl -n argocd create secret generic ghcr-credentials --from-literal=username=ryyyyan-taylor --from-literal=password=<github-pat>` — PAT needs `read:packages` scope |
+| Notes | No `ImageUpdater` CRs configured yet — secret is pre-provisioned for when auto-update annotations are added to apps |
+
 ### whoami (SSO smoke test)
 
 | | |
@@ -389,6 +402,7 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Cloudflare API token | `cert-manager-config/cloudflare-token.sops.yaml` | DNS-01 challenge for cert-manager |
 | Talos secrets | `kubernetes/talos/secrets.sops.yaml` | Cluster bootstrap secrets |
 | Authentik secrets | `authentik-config/authentik-secrets.sops.yaml` | secret-key + postgres passwords |
+| ghcr-credentials | `argocd/ghcr-credentials` Secret (not in repo — create manually) | GitHub PAT (`read:packages`) for ArgoCD Image Updater to pull from ghcr.io |
 
 ## Cluster Rebuild
 
