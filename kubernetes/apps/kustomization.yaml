@@ -11,6 +11,7 @@ resources:
   - platform/local-path-provisioner/application.yaml
   - platform/authentik-config/application.yaml
   - platform/authentik/application.yaml
+  - platform/argocd-config/application.yaml
   - platform/whoami/application.yaml
   - platform/ntfy/application.yaml
   - platform/metrics-server/application.yaml
