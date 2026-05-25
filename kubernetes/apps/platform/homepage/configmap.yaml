@@ -68,7 +68,7 @@ data:
             icon: proxmox
             description: Hypervisor (10.0.1.135)
         - Pi-hole:
-            href: http://10.0.1.160/admin
+            href: https://pihole.lab.ryantaylor.tech/admin
             icon: pi-hole
             description: DNS + ad-blocking
         - ntfy:

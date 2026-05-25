@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole
+  namespace: traefik
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: pihole
+  namespace: traefik
+subsets:
+  - addresses:
+      - ip: 10.0.1.160
+    ports:
+      - port: 80
