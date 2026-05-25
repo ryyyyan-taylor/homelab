@@ -9,6 +9,11 @@ patches:
         name: coredns
       data:
         Corefile: |
+          lab.ryantaylor.tech:53 {
+              errors
+              forward . 10.0.1.160
+              cache 30
+          }
           .:53 {
               errors
               health {
