@@ -15,3 +15,8 @@ data:
       - profile
       - email
       - groups
+  resource.customizations.ignoreDifferences.apps_StatefulSet: |
+    jqPathExpressions:
+      - ".spec.updateStrategy.type"
+      - ".spec.updateStrategy.rollingUpdate.partition"
+      - ".spec.persistentVolumeClaimRetentionPolicy"
