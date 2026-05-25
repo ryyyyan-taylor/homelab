@@ -27,6 +27,13 @@ spec:
                 secretKeyRef:
                   name: authentik-ldap-outpost-token
                   key: token
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           ports:
             - containerPort: 3389
               name: ldap

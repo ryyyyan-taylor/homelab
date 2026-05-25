@@ -58,6 +58,13 @@ spec:
                   runAsUser: 0
                   runAsNonRoot: false
                   allowPrivilegeEscalation: true
+                resources:
+                  requests:
+                    cpu: 10m
+                    memory: 16Mi
+                  limits:
+                    cpu: 100m
+                    memory: 64Mi
             storageSpec:
               volumeClaimTemplate:
                 spec:
@@ -124,6 +131,13 @@ spec:
                   runAsUser: 0
                   runAsNonRoot: false
                   allowPrivilegeEscalation: true
+                resources:
+                  requests:
+                    cpu: 10m
+                    memory: 16Mi
+                  limits:
+                    cpu: 100m
+                    memory: 64Mi
             storage:
               volumeClaimTemplate:
                 spec:
@@ -236,6 +250,8 @@ spec:
               memory: 128Mi
 
         nodeExporter:
+          enabled: true
+        prometheus-node-exporter:
           resources:
             requests:
               cpu: 10m
