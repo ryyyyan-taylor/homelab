@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Note: no set -e — this file is sourced; failures here should not abort callers unexpectedly
 # Installs the sops binary to a persistent location on the Semaphore PVC.
 # The PVC is mounted at /var/lib/semaphore/ and survives pod restarts.
 # Must be sourced (not run directly) so that PATH changes persist in the caller.
@@ -24,4 +25,4 @@ else
 fi
 
 export PATH="${SOPS_BIN_DIR}:${PATH}"
-echo "[setup-sops] PATH updated, sops version: $(${SOPS_BIN} --version)"
+echo "[setup-sops] PATH updated, sops version: $("${SOPS_BIN}" --version 2>&1 | head -1)"

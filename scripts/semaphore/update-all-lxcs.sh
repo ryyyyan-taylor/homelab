@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Note: no set -e so we can handle ansible-playbook's non-zero exit codes
 
 # Ensure sops binary is available (cached on PVC for subsequent runs)
 # shellcheck source=setup-sops.sh
