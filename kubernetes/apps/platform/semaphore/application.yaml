@@ -41,8 +41,8 @@ spec:
           enable: true
 
         extraEnvSecrets:
-          - name: SEMAPHORE_OIDC_PROVIDERS
-            secretName: semaphore-secrets
+          SEMAPHORE_OIDC_PROVIDERS:
+            secret: semaphore-secrets
             key: oidc-providers
 
         ingress:
