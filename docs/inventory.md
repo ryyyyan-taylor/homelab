@@ -129,6 +129,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 16 | uptime-kuma | `uptime-kuma` | Synthetic uptime checks for all services |
 | 17 | homepage | `homepage` | Dashboard landing page at `lab.ryantaylor.tech` |
 | 1 | argocd-image-updater | `argocd` | Watches image registries and auto-updates app image tags |
+| 18 | dash-config | `dash` | SOPS secrets (Proxmox + Semaphore API tokens) for homelab-dash |
+| 19 | dash | `dash` | Custom homelab dashboard (Go + Svelte) at `dash.lab.ryantaylor.tech` |
 | 21 | semaphore-config | `semaphore` | SOPS secrets + IngressRoute for Semaphore |
 | 22 | semaphore | `semaphore` | Semaphore UI task runner (Helm) |
 
@@ -382,6 +384,29 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | **Wrapper scripts** | `scripts/semaphore/*.sh` — handle sops install + exit code mapping |
 | **Known quirk** | CLI (`semaphore user add`) defaults to `$HOME/<interface>` DB, not the SQLite PVC. If break-glass user is lost after PVC deletion, re-insert via Python: `kubectl exec ... -- python3 -c "import sqlite3; ...INSERT INTO user..."` |
 
+### Homelab Dash
+
+| | |
+|---|---|
+| Namespace | `dash` |
+| Image | `ghcr.io/ryyyyan-taylor/homelab-dash:latest` (built by CI on push to `main`) |
+| URL | `https://dash.lab.ryantaylor.tech` |
+| Auth | None — internal only via Tailscale |
+| Source | `apps/dash/` — Go backend + Svelte 5 frontend, single static binary with embedded dist |
+| ArgoCD apps | `dash-config` (wave 18) — SOPS secrets; `dash` (wave 19) — Deployment + Service + IngressRoute |
+| **Backend routes** | `GET /api/proxmox` — Proxmox node/VM summary |
+| | `GET /api/k8s` — Kubernetes nodes + workload summary |
+| | `GET /api/semaphore` — Semaphore task templates with last-run status |
+| | `POST /api/semaphore/run/{templateID}` — trigger a Semaphore task, returns `{"task_id": N}` |
+| | `GET /api/semaphore/tasks/{taskID}` — poll task status |
+| | `GET /api/semaphore/tasks/{taskID}/output` — fetch task log lines |
+| **Env vars** | `PROXMOX_URL` (default `https://10.0.1.135:8006`), `PROXMOX_TOKEN` (from `dash-proxmox` secret) |
+| | `SEMAPHORE_URL` (default `http://semaphore.semaphore.svc.cluster.local:3000`), `SEMAPHORE_TOKEN` (from `dash-semaphore` secret), `SEMAPHORE_PROJECT_ID` (default `1`) |
+| **Secrets** | `dash/dash-proxmox` — key `token` (Proxmox API token); SOPS: `dash-config/proxmox-secret.sops.yaml` |
+| | `dash/dash-semaphore` — key `token` (Semaphore Bearer token); SOPS: `dash-config/semaphore-secret.sops.yaml` |
+| **Tabs** | Proxmox (nodes + VMs), Kubernetes (nodes + workloads), Semaphore (template cards with Run buttons + live log) |
+| **Semaphore tab** | Template cards show last-run status badge + timestamp. Run button triggers task, polls every 2 s, streams output in collapsible log panel. |
+
 ---
 
 ## LXC Service Details
@@ -434,6 +459,8 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Authentik secrets | `authentik-config/authentik-secrets.sops.yaml` | secret-key + postgres passwords |
 | ghcr-credentials | `argocd/ghcr-credentials` Secret (not in repo — create manually) | GitHub PAT (`read:packages`) for ArgoCD Image Updater to pull from ghcr.io |
 | Semaphore secrets | `semaphore-config/semaphore-secrets.sops.yaml` | Admin credentials + Authentik OIDC client ID/secret |
+| Dash secrets | `dash-config/proxmox-secret.sops.yaml` | Proxmox API token for `dash-proxmox` secret in `dash` namespace |
+| | `dash-config/semaphore-secret.sops.yaml` | Semaphore Bearer API token for `dash-semaphore` secret in `dash` namespace |
 
 ## Cluster Rebuild
 
