@@ -1,5 +1,10 @@
 <script>
-  let { data, error } = $props()
+  let { data: propData, error } = $props()
+
+  // Local writable mirror — keeps in sync with the parent but can also be
+  // updated locally by reloadTemplates() without mutating the prop.
+  let data = $state(propData)
+  $effect(() => { data = propData })
 
   // Per-template UI state: { [templateID]: { running, taskID, log, logOpen, err } }
   let templateState = $state({})
