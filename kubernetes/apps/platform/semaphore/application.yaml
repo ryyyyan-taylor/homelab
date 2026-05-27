@@ -38,7 +38,7 @@ spec:
             - ReadWriteOnce
 
         admin:
-          create: true
+          create: false
           existingSecret: semaphore-secrets
           usernameKey: admin-username
           passwordKey: admin-password
