@@ -21,14 +21,11 @@ spec:
           type: Recreate
 
         database:
-          type: bolt
-          path: /var/lib/semaphore/database.boltdb
-          persistence:
-            enabled: true
-            size: 5Gi
-            storageClass: local-path
-            accessModes:
-              - ReadWriteOnce
+          type: sqlite
+          name: /tmp/semaphore/semaphore.db
+          host: ""
+          port: ""
+          usernameFromSecret: false
 
         persistence:
           enabled: true
