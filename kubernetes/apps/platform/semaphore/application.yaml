@@ -36,6 +36,14 @@ spec:
           accessModes:
             - ReadWriteOnce
 
+        admin:
+          create: true
+          existingSecret: semaphore-secrets
+          usernameKey: admin-username
+          passwordKey: admin-password
+          emailKey: admin-email
+          fullnameKey: admin-fullname
+
         oidc:
           enable: true
 
