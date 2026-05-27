@@ -26,6 +26,7 @@ spec:
           name: /tmp/semaphore/semaphore.db
           host: ""
           port: 0
+          existingSecret: semaphore-secrets
           usernameFromSecret: false
 
         persistence:
