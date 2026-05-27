@@ -5,3 +5,29 @@ all:
         pve:
           ansible_host: 10.0.1.135
           ansible_user: root
+
+    game_servers:
+      hosts:
+        corekeeper:
+          ansible_host: 10.0.1.151
+          ansible_user: root
+          proxmox_vmid: 151
+        minecraft:
+          ansible_host: 10.0.1.152
+          ansible_user: root
+          proxmox_vmid: 152
+        terraria:
+          ansible_host: 10.0.1.153
+          ansible_user: root
+          proxmox_vmid: 153
+
+    infrastructure:
+      hosts:
+        pi-hole:
+          ansible_host: 10.0.1.160
+          ansible_user: root
+          proxmox_vmid: 160
+        network:
+          ansible_host: 10.0.1.161
+          ansible_user: root
+          proxmox_vmid: 161
