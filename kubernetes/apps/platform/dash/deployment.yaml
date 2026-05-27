@@ -32,6 +32,15 @@ spec:
                 secretKeyRef:
                   name: dash-proxmox
                   key: token
+            - name: SEMAPHORE_URL
+              value: http://semaphore.semaphore.svc.cluster.local:3000
+            - name: SEMAPHORE_PROJECT_ID
+              value: "1"
+            - name: SEMAPHORE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dash-semaphore
+                  key: token
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

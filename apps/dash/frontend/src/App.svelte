@@ -2,20 +2,24 @@
   import { onMount, onDestroy } from 'svelte'
   import ProxmoxTab from './lib/ProxmoxTab.svelte'
   import KubernetesTab from './lib/KubernetesTab.svelte'
+  import SemaphoreTab from './lib/SemaphoreTab.svelte'
 
   let tab = $state('proxmox')
   let interval = $state(30)
   let proxmoxData = $state(null)
   let k8sData = $state(null)
+  let semaphoreData = $state(null)
   let proxmoxError = $state(null)
   let k8sError = $state(null)
+  let semaphoreError = $state(null)
   let lastUpdated = $state(null)
   let timer
 
   async function fetchAll() {
-    const [px, k8s] = await Promise.allSettled([
+    const [px, k8s, sem] = await Promise.allSettled([
       fetch('/api/proxmox').then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
       fetch('/api/k8s').then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
+      fetch('/api/semaphore').then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
     ])
 
     if (px.status === 'fulfilled') { proxmoxData = px.value; proxmoxError = null }
@@ -23,6 +27,10 @@
 
     if (k8s.status === 'fulfilled') { k8sData = k8s.value; k8sError = null }
     else k8sError = k8s.reason
+
+    // Semaphore data only refreshes at the top level; running tasks manage their own state
+    if (sem.status === 'fulfilled') { semaphoreData = sem.value; semaphoreError = null }
+    else semaphoreError = sem.reason
 
     lastUpdated = new Date()
   }
@@ -47,6 +55,7 @@
     <nav>
       <button class:active={tab === 'proxmox'} onclick={() => tab = 'proxmox'}>Proxmox</button>
       <button class:active={tab === 'kubernetes'} onclick={() => tab = 'kubernetes'}>Kubernetes</button>
+      <button class:active={tab === 'semaphore'} onclick={() => tab = 'semaphore'}>Semaphore</button>
     </nav>
     <div class="controls">
       {#if lastUpdated}
@@ -67,8 +76,10 @@
   <main>
     {#if tab === 'proxmox'}
       <ProxmoxTab data={proxmoxData} error={proxmoxError} />
-    {:else}
+    {:else if tab === 'kubernetes'}
       <KubernetesTab data={k8sData} error={k8sError} />
+    {:else}
+      <SemaphoreTab data={semaphoreData} error={semaphoreError} />
     {/if}
   </main>
 </div>
