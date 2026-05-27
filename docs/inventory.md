@@ -363,18 +363,24 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 
 | | |
 |---|---|
-| Version | 16.2.2 (chart) |
+| Version | 16.2.2 (chart) / v2.18.3 (app) |
 | Namespace | `semaphore` |
 | Helm repo | `https://semaphoreui.github.io/charts` |
 | URL | `https://semaphore.lab.ryantaylor.tech` |
-| Database | BoltDB (embedded), 5Gi PVC on `local-path` |
-| Persistence | 5Gi PVC on `local-path` (task working directories) |
+| Database | SQLite at `/var/lib/semaphore/database.sqlite` (2Gi PVC `semaphore-data`) |
+| Working dirs | 5Gi PVC on `local-path` (Helm-managed, task clone dirs at `/tmp/semaphore/`) |
 | Auth | Authentik OIDC (primary) + local `semaphore-admin` break-glass account |
 | OIDC provider | `authentik` — discovery via `https://authentik.lab.ryantaylor.tech/application/o/semaphore/` |
 | OIDC redirect | `https://semaphore.lab.ryantaylor.tech/api/auth/oidc/authentik/redirect` |
 | Secrets | `semaphore/semaphore-secrets` (SOPS: `semaphore-config/semaphore-secrets.sops.yaml`) |
 | Secret keys | `admin-username`, `admin-password`, `admin-email`, `admin-fullname`, `oidc-providers` |
 | IngressRoute | `semaphore-config/ingressroute.yaml` — deployed at wave 21 before Helm pods start |
+| **Semaphore project** | `homelab` (project ID 1) — sources `https://github.com/ryyyyan-taylor/homelab.git` |
+| **Environment** | `homelab` (env ID 1) — provides `SOPS_AGE_KEY`, `TF_VAR_proxmox_*`, `ANSIBLE_HOST_KEY_CHECKING` |
+| **Inventory** | `proxmox-lxcs` — file-based `ansible/inventory/` (static + Proxmox dynamic) |
+| **Task templates** | "Update all LXCs", "Update game servers", "Configure Proxmox host" |
+| **Wrapper scripts** | `scripts/semaphore/*.sh` — handle sops install + exit code mapping |
+| **Known quirk** | CLI (`semaphore user add`) defaults to `$HOME/<interface>` DB, not the SQLite PVC. If break-glass user is lost after PVC deletion, re-insert via Python: `kubectl exec ... -- python3 -c "import sqlite3; ...INSERT INTO user..."` |
 
 ---
 
