@@ -4,15 +4,22 @@
   // Per-template UI state: { [templateID]: { running, taskID, log, logOpen, err } }
   let templateState = $state({})
 
-  function stateFor(id) {
-    if (!templateState[id]) {
-      templateState[id] = { running: false, taskID: null, log: [], logOpen: false, err: null }
+  // Pre-initialise state entries when data loads — never mutate $state during rendering
+  $effect(() => {
+    if (!data) return
+    for (const tmpl of data) {
+      if (!(tmpl.id in templateState)) {
+        templateState[tmpl.id] = { running: false, taskID: null, log: [], logOpen: false, err: null }
+      }
     }
-    return templateState[id]
-  }
+  })
 
   async function runTemplate(templateID) {
-    const s = stateFor(templateID)
+    // Initialise lazily if the effect hasn't fired yet (shouldn't happen, but be safe)
+    if (!templateState[templateID]) {
+      templateState[templateID] = { running: false, taskID: null, log: [], logOpen: false, err: null }
+    }
+    const s = templateState[templateID]
     s.running = true
     s.log = []
     s.logOpen = true
@@ -105,7 +112,7 @@
     <h3>Task Templates</h3>
     <div class="template-grid">
       {#each data as tmpl}
-        {@const s = stateFor(tmpl.id)}
+        {@const s = templateState[tmpl.id]}
         {@const last = tmpl.last_task}
         <div class="template-card">
           <div class="card-header">
@@ -117,10 +124,10 @@
             </div>
             <button
               class="run-btn"
-              disabled={s.running}
+              disabled={s?.running}
               onclick={() => runTemplate(tmpl.id)}
             >
-              {#if s.running}
+              {#if s?.running}
                 <span class="spinner">⟳</span> Running…
               {:else}
                 ▶ Run
@@ -129,7 +136,7 @@
           </div>
 
           <div class="card-meta">
-            {#if s.running && s.taskID}
+            {#if s?.running && s?.taskID}
               <span class="badge amber">running</span>
               <span class="muted meta-text">task #{s.taskID}</span>
             {:else if last}
@@ -139,18 +146,18 @@
               <span class="badge muted-badge">never run</span>
             {/if}
 
-            {#if s.err}
+            {#if s?.err}
               <span class="err-text">⚠ {s.err}</span>
             {/if}
 
-            {#if s.log.length > 0}
+            {#if s?.log?.length > 0}
               <button class="log-toggle" onclick={() => s.logOpen = !s.logOpen}>
                 {s.logOpen ? '▾ Hide log' : '▸ Show log'}
               </button>
             {/if}
           </div>
 
-          {#if s.logOpen && s.log.length > 0}
+          {#if s?.logOpen && s?.log?.length > 0}
             <div class="log-panel">
               <pre>{s.log.join('\n')}</pre>
             </div>
