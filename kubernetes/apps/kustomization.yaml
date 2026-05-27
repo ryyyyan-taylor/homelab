@@ -27,3 +27,5 @@ resources:
   - platform/dash-config/application.yaml
   - platform/dash/application.yaml
   - platform/cluster-health/application.yaml
+  - platform/semaphore-config/application.yaml
+  - platform/semaphore/application.yaml

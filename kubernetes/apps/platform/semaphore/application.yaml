@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: semaphore
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://semaphoreui.github.io/charts
+    chart: semaphore
+    targetRevision: 16.2.2
+    helm:
+      values: |
+        replicas: 1
+
+        strategy:
+          type: Recreate
+
+        database:
+          type: bolt
+          path: /var/lib/semaphore/database.boltdb
+          persistence:
+            enabled: true
+            size: 5Gi
+            storageClass: local-path
+            accessModes:
+              - ReadWriteOnce
+
+        persistence:
+          enabled: true
+          size: 5Gi
+          storageClass: local-path
+          accessModes:
+            - ReadWriteOnce
+
+        admin:
+          create: true
+          existingSecret: semaphore-secrets
+          usernameKey: admin-username
+          passwordKey: admin-password
+          emailKey: admin-email
+          fullnameKey: admin-fullname
+
+        oidc:
+          enable: true
+
+        extraEnvSecrets:
+          - name: SEMAPHORE_OIDC_PROVIDERS
+            secretName: semaphore-secrets
+            key: oidc-providers
+
+        ingress:
+          enabled: false
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 384Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: semaphore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

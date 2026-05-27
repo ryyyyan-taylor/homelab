@@ -129,6 +129,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 16 | uptime-kuma | `uptime-kuma` | Synthetic uptime checks for all services |
 | 17 | homepage | `homepage` | Dashboard landing page at `lab.ryantaylor.tech` |
 | 1 | argocd-image-updater | `argocd` | Watches image registries and auto-updates app image tags |
+| 21 | semaphore-config | `semaphore` | SOPS secrets + IngressRoute for Semaphore |
+| 22 | semaphore | `semaphore` | Semaphore UI task runner (Helm) |
 
 ### cert-manager
 
@@ -357,6 +359,23 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Purpose | Verifies end-to-end SSO: Traefik → Authentik forward-auth → authenticated response with `X-Authentik-*` headers |
 | Middleware | `authentik-forwardauth` (Traefik namespace, cross-namespace reference) |
 
+### Semaphore
+
+| | |
+|---|---|
+| Version | 16.2.2 (chart) |
+| Namespace | `semaphore` |
+| Helm repo | `https://semaphoreui.github.io/charts` |
+| URL | `https://semaphore.lab.ryantaylor.tech` |
+| Database | BoltDB (embedded), 5Gi PVC on `local-path` |
+| Persistence | 5Gi PVC on `local-path` (task working directories) |
+| Auth | Authentik OIDC (primary) + local `semaphore-admin` break-glass account |
+| OIDC provider | `authentik` — discovery via `https://authentik.lab.ryantaylor.tech/application/o/semaphore/` |
+| OIDC redirect | `https://semaphore.lab.ryantaylor.tech/api/auth/oidc/authentik/redirect` |
+| Secrets | `semaphore/semaphore-secrets` (SOPS: `semaphore-config/semaphore-secrets.sops.yaml`) |
+| Secret keys | `admin-username`, `admin-password`, `admin-email`, `admin-fullname`, `oidc-providers` |
+| IngressRoute | `semaphore-config/ingressroute.yaml` — deployed at wave 21 before Helm pods start |
+
 ---
 
 ## LXC Service Details
@@ -408,6 +427,7 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Talos secrets | `kubernetes/talos/secrets.sops.yaml` | Cluster bootstrap secrets |
 | Authentik secrets | `authentik-config/authentik-secrets.sops.yaml` | secret-key + postgres passwords |
 | ghcr-credentials | `argocd/ghcr-credentials` Secret (not in repo — create manually) | GitHub PAT (`read:packages`) for ArgoCD Image Updater to pull from ghcr.io |
+| Semaphore secrets | `semaphore-config/semaphore-secrets.sops.yaml` | Admin credentials + Authentik OIDC client ID/secret |
 
 ## Cluster Rebuild
 
