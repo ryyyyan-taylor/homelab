@@ -23,7 +23,7 @@ spec:
 
         database:
           type: sqlite
-          name: /tmp/semaphore/semaphore.db
+          name: /var/lib/semaphore/database.sqlite
           host: ""
           port: 0
           existingSecret: semaphore-secrets
@@ -51,6 +51,15 @@ spec:
           SEMAPHORE_OIDC_PROVIDERS:
             secret: semaphore-secrets
             key: oidc-providers
+
+        extraVolumes:
+          - name: semaphore-data
+            persistentVolumeClaim:
+              claimName: semaphore-data
+
+        extraVolumeMounts:
+          - name: semaphore-data
+            mountPath: /var/lib/semaphore
 
         ingress:
           enabled: false

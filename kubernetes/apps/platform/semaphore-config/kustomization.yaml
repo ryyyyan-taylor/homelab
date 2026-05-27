@@ -3,5 +3,6 @@ kind: Kustomization
 namespace: semaphore
 resources:
   - ingressroute.yaml
+  - semaphore-data-pvc.yaml
 generators:
   - ksops.yaml
