@@ -5,7 +5,7 @@
   import SemaphoreTab from './lib/SemaphoreTab.svelte'
 
   let tab = $state('proxmox')
-  let interval = $state(30)
+  let interval = $state(5)
   let proxmoxData = $state(null)
   let k8sData = $state(null)
   let semaphoreData = $state(null)
@@ -64,10 +64,9 @@
       <label>
         Refresh
         <select bind:value={interval} onchange={startTimer}>
-          <option value={15}>15s</option>
-          <option value={30}>30s</option>
-          <option value={60}>60s</option>
-          <option value={300}>5m</option>
+          <option value={2}>2s</option>
+          <option value={5}>5s</option>
+          <option value={10}>10s</option>
         </select>
       </label>
     </div>

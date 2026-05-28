@@ -173,8 +173,12 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 			}
 		}
 		m := mmap[n.Metadata.Name]
+		name := n.Metadata.Labels["kubernetes.io/hostname"]
+		if name == "" {
+			name = n.Metadata.Name
+		}
 		dash.Nodes = append(dash.Nodes, NodeInfo{
-			Name:               n.Metadata.Name,
+			Name:               name,
 			Roles:              nodeRoles(n.Metadata.Labels),
 			Ready:              ready,
 			CPUTotalMillicores: parseMillicores(n.Status.Allocatable.CPU),

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 )
 
@@ -145,6 +146,7 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 			UptimeSeconds: v.Uptime,
 		})
 	}
+	sort.Slice(dash.VMs, func(i, j int) bool { return dash.VMs[i].VMID < dash.VMs[j].VMID })
 
 	for _, l := range lxcsResp.Data {
 		dash.LXCs = append(dash.LXCs, VMInfo{
@@ -157,6 +159,7 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 			UptimeSeconds: l.Uptime,
 		})
 	}
+	sort.Slice(dash.LXCs, func(i, j int) bool { return dash.LXCs[i].VMID < dash.LXCs[j].VMID })
 
 	return dash, nil
 }
