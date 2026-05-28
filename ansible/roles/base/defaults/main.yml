@@ -8,3 +8,5 @@ base_install_promtail: true
 
 # Extra glob paths to ship to Loki — override in group_vars for game servers etc.
 promtail_extra_log_paths: []
+
+base_manage_rt_user: true

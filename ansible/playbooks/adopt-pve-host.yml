@@ -10,3 +10,4 @@
     - role: base
       vars:
         base_install_promtail: false
+        base_manage_rt_user: false

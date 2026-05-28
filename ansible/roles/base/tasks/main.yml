@@ -17,6 +17,7 @@
     owner: rt
     group: rt
     mode: "0700"
+  when: base_manage_rt_user | bool
 
 - name: Authorise admin SSH keys for rt
   ansible.posix.authorized_key:
@@ -25,3 +26,4 @@
     state: present
     manage_dir: true
   loop: "{{ admin_ssh_keys }}"
+  when: base_manage_rt_user | bool
