@@ -4,8 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -162,4 +166,70 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 	sort.Slice(dash.LXCs, func(i, j int) bool { return dash.LXCs[i].VMID < dash.LXCs[j].VMID })
 
 	return dash, nil
+}
+
+// TermProxyData is returned by Proxmox termproxy endpoints.
+type TermProxyData struct {
+	Ticket string `json:"ticket"`
+	Port   int    `json:"port"`
+	UpID   string `json:"upid"`
+}
+
+// post sends an authenticated POST with an empty body to the Proxmox API.
+func (c *Client) post(path string, out any) error {
+	req, err := http.NewRequest("POST", c.base+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "PVEAPIToken="+c.token)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("proxmox API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// TermProxy creates a terminal proxy session. targetType is "node" or "lxc".
+func (c *Client) TermProxy(node, targetType, vmid string) (TermProxyData, error) {
+	var path string
+	switch targetType {
+	case "node":
+		path = "/api2/json/nodes/" + node + "/termproxy"
+	case "lxc":
+		path = "/api2/json/nodes/" + node + "/lxc/" + vmid + "/termproxy"
+	default:
+		return TermProxyData{}, fmt.Errorf("unsupported type: %s", targetType)
+	}
+
+	var resp pveResponse[TermProxyData]
+	if err := c.post(path, &resp); err != nil {
+		return TermProxyData{}, err
+	}
+	return resp.Data, nil
+}
+
+// VNCWebSocketURL returns the wss:// URL for the Proxmox vncwebsocket endpoint.
+func (c *Client) VNCWebSocketURL(node, targetType, vmid string, port int, ticket string) string {
+	wsBase := strings.Replace(c.base, "https://", "wss://", 1)
+	wsBase = strings.Replace(wsBase, "http://", "ws://", 1)
+
+	var path string
+	switch targetType {
+	case "node":
+		path = "/api2/json/nodes/" + node + "/vncwebsocket"
+	default:
+		path = "/api2/json/nodes/" + node + "/lxc/" + vmid + "/vncwebsocket"
+	}
+
+	q := url.Values{}
+	q.Set("port", strconv.Itoa(port))
+	q.Set("vncticket", ticket)
+	return wsBase + path + "?" + q.Encode()
 }

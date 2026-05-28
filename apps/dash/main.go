@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/k8s"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/proxmox"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/semaphore"
@@ -131,6 +133,79 @@ func main() {
 			return
 		}
 		jsonResponse(w, map[string][]string{"lines": lines})
+	})
+
+	// --- Shell tab: WebSocket terminal proxy ---
+
+	wsUpgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
+	wsDialer := &websocket.Dialer{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // Proxmox self-signed cert
+	}
+
+	mux.HandleFunc("GET /api/shell/ws", func(w http.ResponseWriter, r *http.Request) {
+		targetType := r.URL.Query().Get("type") // "node" or "lxc"
+		node := r.URL.Query().Get("node")
+		vmid := r.URL.Query().Get("vmid")
+
+		if node == "" || targetType == "" {
+			http.Error(w, "missing node or type", http.StatusBadRequest)
+			return
+		}
+
+		// Get a terminal ticket from Proxmox before upgrading the browser WS.
+		tpData, err := pc.TermProxy(node, targetType, vmid)
+		if err != nil {
+			http.Error(w, "termproxy: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+
+		pveWSURL := pc.VNCWebSocketURL(node, targetType, vmid, tpData.Port, tpData.Ticket)
+		pveConn, _, err := wsDialer.Dial(pveWSURL, http.Header{
+			"Authorization": {"PVEAPIToken=" + proxmoxToken},
+		})
+		if err != nil {
+			http.Error(w, "proxmox ws: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer pveConn.Close()
+
+		browserConn, err := wsUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return // upgrader already wrote the error response
+		}
+		defer browserConn.Close()
+
+		// Proxy frames bidirectionally until either side closes.
+		errc := make(chan error, 2)
+		go func() {
+			for {
+				mt, msg, err := browserConn.ReadMessage()
+				if err != nil {
+					errc <- err
+					return
+				}
+				if err := pveConn.WriteMessage(mt, msg); err != nil {
+					errc <- err
+					return
+				}
+			}
+		}()
+		go func() {
+			for {
+				mt, msg, err := pveConn.ReadMessage()
+				if err != nil {
+					errc <- err
+					return
+				}
+				if err := browserConn.WriteMessage(mt, msg); err != nil {
+					errc <- err
+					return
+				}
+			}
+		}()
+		<-errc
 	})
 
 	dist, err := fs.Sub(frontend, "frontend/dist")

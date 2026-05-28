@@ -3,6 +3,7 @@
   import ProxmoxTab from './lib/ProxmoxTab.svelte'
   import KubernetesTab from './lib/KubernetesTab.svelte'
   import SemaphoreTab from './lib/SemaphoreTab.svelte'
+  import ShellTab from './lib/ShellTab.svelte'
 
   let tab = $state('proxmox')
   let interval = $state(5)
@@ -56,6 +57,7 @@
       <button class:active={tab === 'proxmox'} onclick={() => tab = 'proxmox'}>Proxmox</button>
       <button class:active={tab === 'kubernetes'} onclick={() => tab = 'kubernetes'}>Kubernetes</button>
       <button class:active={tab === 'semaphore'} onclick={() => tab = 'semaphore'}>Semaphore</button>
+      <button class:active={tab === 'shell'} onclick={() => tab = 'shell'}>Shell</button>
     </nav>
     <div class="controls">
       {#if lastUpdated}
@@ -77,8 +79,10 @@
       <ProxmoxTab data={proxmoxData} error={proxmoxError} />
     {:else if tab === 'kubernetes'}
       <KubernetesTab data={k8sData} error={k8sError} />
-    {:else}
+    {:else if tab === 'semaphore'}
       <SemaphoreTab data={semaphoreData} error={semaphoreError} />
+    {:else}
+      <ShellTab data={proxmoxData} error={proxmoxError} />
     {/if}
   </main>
 </div>
