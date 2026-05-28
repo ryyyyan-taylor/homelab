@@ -249,8 +249,13 @@ func nodeRoles(labels map[string]string) []string {
 	return roles
 }
 
-// parseMillicores parses k8s CPU quantity strings like "2", "500m", "2000m".
+// parseMillicores parses k8s CPU quantity strings: "2", "500m", "2000m", "423158750n".
+// The metrics API returns usage in nanocores ("n"); allocatable comes in cores or millicores.
 func parseMillicores(s string) int64 {
+	if strings.HasSuffix(s, "n") {
+		v, _ := strconv.ParseInt(strings.TrimSuffix(s, "n"), 10, 64)
+		return v / 1_000_000 // nanocores → millicores
+	}
 	if strings.HasSuffix(s, "m") {
 		v, _ := strconv.ParseInt(strings.TrimSuffix(s, "m"), 10, 64)
 		return v
