@@ -55,13 +55,15 @@ type Dashboard struct {
 }
 
 type NodeInfo struct {
-	Name               string   `json:"name"`
-	Roles              []string `json:"roles"`
-	Ready              bool     `json:"ready"`
-	CPUTotalMillicores int64    `json:"cpu_total_millicores"`
-	CPUUsageMillicores int64    `json:"cpu_usage_millicores"`
-	MemTotalBytes      int64    `json:"mem_total_bytes"`
-	MemUsageBytes      int64    `json:"mem_usage_bytes"`
+	Name                string   `json:"name"`
+	Roles               []string `json:"roles"`
+	Ready               bool     `json:"ready"`
+	CPUTotalMillicores  int64    `json:"cpu_total_millicores"`
+	CPUUsageMillicores  int64    `json:"cpu_usage_millicores"`
+	CPURequestMillicores int64   `json:"cpu_request_millicores"`
+	MemTotalBytes       int64    `json:"mem_total_bytes"`
+	MemUsageBytes       int64    `json:"mem_usage_bytes"`
+	MemRequestBytes     int64    `json:"mem_request_bytes"`
 }
 
 type DeploymentInfo struct {
@@ -123,6 +125,22 @@ type nodeMetricsList struct {
 	} `json:"items"`
 }
 
+type podList struct {
+	Items []struct {
+		Spec struct {
+			NodeName   string `json:"nodeName"`
+			Containers []struct {
+				Resources struct {
+					Requests struct {
+						CPU    string `json:"cpu"`
+						Memory string `json:"memory"`
+					} `json:"requests"`
+				} `json:"resources"`
+			} `json:"containers"`
+		} `json:"spec"`
+	} `json:"items"`
+}
+
 type deploymentList struct {
 	Items []struct {
 		Metadata struct {
@@ -157,6 +175,20 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 		}
 	}
 
+	var pods podList
+	_ = c.get("/api/v1/pods?fieldSelector=status.phase=Running", &pods) // best-effort
+
+	// sum container requests per node, keyed by k8s metadata.name
+	reqmap := make(map[string]metricEntry, len(nodes.Items))
+	for _, p := range pods.Items {
+		e := reqmap[p.Spec.NodeName]
+		for _, ct := range p.Spec.Containers {
+			e.cpuM += parseMillicores(ct.Resources.Requests.CPU)
+			e.memB += parseMemoryBytes(ct.Resources.Requests.Memory)
+		}
+		reqmap[p.Spec.NodeName] = e
+	}
+
 	var deployments deploymentList
 	if err := c.get("/apis/apps/v1/deployments", &deployments); err != nil {
 		return nil, fmt.Errorf("deployments: %w", err)
@@ -173,18 +205,21 @@ func (c *Client) GetDashboard() (*Dashboard, error) {
 			}
 		}
 		m := mmap[n.Metadata.Name]
+		r := reqmap[n.Metadata.Name]
 		name := n.Metadata.Labels["kubernetes.io/hostname"]
 		if name == "" {
 			name = n.Metadata.Name
 		}
 		dash.Nodes = append(dash.Nodes, NodeInfo{
-			Name:               name,
-			Roles:              nodeRoles(n.Metadata.Labels),
-			Ready:              ready,
-			CPUTotalMillicores: parseMillicores(n.Status.Allocatable.CPU),
-			CPUUsageMillicores: m.cpuM,
-			MemTotalBytes:      parseMemoryBytes(n.Status.Allocatable.Memory),
-			MemUsageBytes:      m.memB,
+			Name:                 name,
+			Roles:                nodeRoles(n.Metadata.Labels),
+			Ready:                ready,
+			CPUTotalMillicores:   parseMillicores(n.Status.Allocatable.CPU),
+			CPUUsageMillicores:   m.cpuM,
+			CPURequestMillicores: r.cpuM,
+			MemTotalBytes:        parseMemoryBytes(n.Status.Allocatable.Memory),
+			MemUsageBytes:        m.memB,
+			MemRequestBytes:      r.memB,
 		})
 	}
 

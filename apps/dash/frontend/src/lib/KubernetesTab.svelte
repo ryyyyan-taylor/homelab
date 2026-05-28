@@ -12,6 +12,15 @@
   function pct(used, total) {
     return total > 0 ? (used / total) * 100 : 0
   }
+
+  function saturation(node) {
+    return Math.max(
+      pct(node.cpu_usage_millicores, node.cpu_total_millicores),
+      pct(node.cpu_request_millicores, node.cpu_total_millicores),
+      pct(node.mem_usage_bytes, node.mem_total_bytes),
+      pct(node.mem_request_bytes, node.mem_total_bytes),
+    )
+  }
 </script>
 
 {#if error}
@@ -37,6 +46,8 @@
             <span class="sub muted">{(node.cpu_usage_millicores / 1000).toFixed(2)} / {(node.cpu_total_millicores / 1000).toFixed(0)} cores</span>
             <UtilBar label="RAM" value={pct(node.mem_usage_bytes, node.mem_total_bytes)} />
             <span class="sub muted">{fmtBytes(node.mem_usage_bytes)} / {fmtBytes(node.mem_total_bytes)}</span>
+            <div class="sat-divider"></div>
+            <UtilBar label="Sat." value={saturation(node)} />
           </div>
         </div>
       {/each}
@@ -87,6 +98,7 @@
   .node-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.15rem; }
   .node-roles { font-size: 0.75rem; color: var(--muted); }
   .node-metrics { display: flex; flex-direction: column; gap: 0.35rem; }
+  .sat-divider { height: 1px; background: var(--border); margin: 0.2rem 0; }
   .sub { font-size: 0.72rem; font-family: var(--font-mono); }
 
   table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
