@@ -246,11 +246,11 @@ func (c *Client) HostAddr() string {
 // GetLXCSSHAddr fetches the static IPv4 address configured on an LXC container's
 // primary network interface. Returns an error if DHCP is in use or no IP is found.
 func (c *Client) GetLXCSSHAddr(node, vmid string) (string, error) {
-	var resp pveResponse[map[string]string]
+	var resp pveResponse[map[string]any]
 	if err := c.get("/api2/json/nodes/"+node+"/lxc/"+vmid+"/config", &resp); err != nil {
 		return "", fmt.Errorf("lxc config: %w", err)
 	}
-	net0 := resp.Data["net0"]
+	net0, _ := resp.Data["net0"].(string)
 	for _, part := range strings.Split(net0, ",") {
 		kv := strings.SplitN(part, "=", 2)
 		if len(kv) == 2 && kv[0] == "ip" {
