@@ -187,7 +187,9 @@ func main() {
 		defer browserConn.Close()
 
 		vncURL := pc.VNCWebSocketURL(node, "qemu", vmid, port, ticket)
-		proxmoxConn, _, err := wsDialer.Dial(vncURL, nil)
+		proxmoxConn, _, err := wsDialer.Dial(vncURL, http.Header{
+			"Authorization": {"PVEAPIToken=" + proxmoxToken},
+		})
 		if err != nil {
 			log.Printf("VNC dial %s: %v", vncURL, err)
 			return
