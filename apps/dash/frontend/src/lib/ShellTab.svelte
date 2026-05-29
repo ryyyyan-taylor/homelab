@@ -1,17 +1,25 @@
 <script>
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import UtilBar from './UtilBar.svelte'
 
   let { data, error } = $props()
 
-  let activeKey = $state(null)   // 'node' | 'lxc-{vmid}'
+  let activeKey = $state(null)   // 'node' | 'lxc-{vmid}' | 'qemu-{vmid}'
   let connStatus = $state('idle') // 'idle' | 'connecting' | 'connected' | 'error' | 'closed'
   let connError = $state('')
 
   let termEl = $state(null)
+  let vncEl = $state(null)
   let term = null
   let fitAddon = null
   let ws = null
+  let rfb = null
+
+  let activeType = $derived(
+    activeKey === null ? null :
+    activeKey === 'node' ? 'node' :
+    activeKey.startsWith('lxc-') ? 'lxc' : 'qemu'
+  )
 
   function pct(used, total) {
     return total > 0 ? (used / total) * 100 : 0
@@ -25,13 +33,20 @@
     }
   }
 
+  function closeVNC() {
+    if (rfb) {
+      rfb.disconnect()
+      rfb = null
+    }
+  }
+
   function openShell(type, node, vmid) {
     if (!term) return
     term.clear()
     connStatus = 'connecting'
     connError = ''
 
-    fitAddon?.fit()  // measure before connecting so we can send accurate initial size
+    fitAddon?.fit()
     const params = new URLSearchParams({ type, node })
     if (type === 'lxc') params.set('vmid', String(vmid))
     if (term) { params.set('cols', String(term.cols)); params.set('rows', String(term.rows)) }
@@ -68,8 +83,57 @@
     }
   }
 
+  async function openVNC(node, vmid) {
+    connStatus = 'connecting'
+    connError = ''
+
+    await tick()  // ensure vncEl is mounted
+
+    if (!vncEl) {
+      connStatus = 'error'
+      connError = 'VNC container not ready'
+      return
+    }
+
+    let ticketData
+    try {
+      const res = await fetch(`/api/shell/vncproxy?node=${encodeURIComponent(node)}&vmid=${encodeURIComponent(vmid)}`)
+      if (!res.ok) throw new Error(await res.text())
+      ticketData = await res.json()
+    } catch (e) {
+      connStatus = 'error'
+      connError = e.message
+      return
+    }
+
+    const { default: RFB } = await import('@novnc/novnc')
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const params = new URLSearchParams({
+      node,
+      vmid: String(vmid),
+      ticket: ticketData.ticket,
+      port: String(ticketData.port),
+    })
+    const wsUrl = `${proto}//${location.host}/api/shell/vnc?${params}`
+
+    rfb = new RFB(vncEl, wsUrl, {
+      credentials: { password: ticketData.ticket },
+    })
+    rfb.scaleViewport = true
+    rfb.resizeSession = true
+
+    rfb.addEventListener('connect', () => { connStatus = 'connected' })
+    rfb.addEventListener('disconnect', (e) => {
+      if (!rfb) return
+      connStatus = e.detail.clean ? 'closed' : 'error'
+      if (!e.detail.clean) connError = 'VNC disconnected'
+    })
+  }
+
   function selectNode() {
     if (!data) return
+    closeVNC()
     closeWS()
     activeKey = 'node'
     openShell('node', data.node.name, null)
@@ -77,9 +141,18 @@
 
   function selectLXC(lxc) {
     if (lxc.status !== 'running') return
+    closeVNC()
     closeWS()
     activeKey = `lxc-${lxc.vmid}`
     openShell('lxc', data.node.name, lxc.vmid)
+  }
+
+  function selectVM(vm) {
+    if (vm.status !== 'running') return
+    closeWS()
+    closeVNC()
+    activeKey = `qemu-${vm.vmid}`
+    openVNC(data.node.name, vm.vmid)
   }
 
   onMount(async () => {
@@ -124,6 +197,7 @@
 
   onDestroy(() => {
     closeWS()
+    closeVNC()
     term?.dispose()
   })
 </script>
@@ -157,16 +231,26 @@
         </div>
       </div>
 
-      <!-- QEMU VMs — no text terminal available -->
+      <!-- QEMU VMs — VNC console -->
       {#if data.vms.length > 0}
         <div class="section-divider">VMs</div>
         {#each data.vms as vm}
-          <div class="machine-row disabled" title="QEMU VMs use a graphical console, not a text terminal">
+          {@const key = `qemu-${vm.vmid}`}
+          {@const running = vm.status === 'running'}
+          <div
+            class="machine-row {activeKey === key ? 'active' : ''} {!running ? 'disabled' : ''}"
+            role="button"
+            tabindex={running ? 0 : -1}
+            aria-disabled={!running}
+            onclick={() => selectVM(vm)}
+            onkeydown={e => e.key === 'Enter' && selectVM(vm)}
+            title={!running ? `VM is ${vm.status}` : 'Open VNC console'}
+          >
             <div class="machine-info">
               <div class="name-row">
                 <span class="vmid muted">#{vm.vmid}</span>
                 <span class="name">{vm.name}</span>
-                <span class="badge muted-badge">no terminal</span>
+                <span class="badge {running ? 'purple' : 'muted-badge'}">{running ? 'vnc' : vm.status}</span>
               </div>
               <div class="bars">
                 <UtilBar label="CPU" value={vm.cpu_percent} />
@@ -185,8 +269,9 @@
           {@const running = lxc.status === 'running'}
           <div
             class="machine-row {activeKey === key ? 'active' : ''} {!running ? 'disabled' : ''}"
-            role={running ? 'button' : undefined}
+            role="button"
             tabindex={running ? 0 : -1}
+            aria-disabled={!running}
             onclick={() => selectLXC(lxc)}
             onkeydown={e => e.key === 'Enter' && selectLXC(lxc)}
             title={!running ? `Container is ${lxc.status}` : undefined}
@@ -207,12 +292,18 @@
       {/if}
     </div>
 
-    <!-- Right: terminal -->
+    <!-- Right: terminal or VNC canvas -->
     <div class="term-col">
       <div class="term-header">
         {#if activeKey}
           <span class="term-title">
-            {#if activeKey === 'node'}{data.node.name}{:else}{data.lxcs.find(l => `lxc-${l.vmid}` === activeKey)?.name ?? activeKey}{/if}
+            {#if activeKey === 'node'}
+              {data.node.name}
+            {:else if activeType === 'lxc'}
+              {data.lxcs.find(l => `lxc-${l.vmid}` === activeKey)?.name ?? activeKey}
+            {:else}
+              {data.vms.find(v => `qemu-${v.vmid}` === activeKey)?.name ?? activeKey}
+            {/if}
           </span>
           {#if connStatus === 'connected'}
             <span class="badge green">connected</span>
@@ -226,7 +317,14 @@
           <span class="term-title muted">Select a host or container to open a shell</span>
         {/if}
       </div>
-      <div class="term-wrap" bind:this={termEl}></div>
+
+      <!-- SSH terminal (node + lxc) -->
+      <div class="term-wrap" class:hidden={activeType === 'qemu'} bind:this={termEl}></div>
+
+      <!-- VNC canvas (qemu) -->
+      {#if activeType === 'qemu'}
+        <div class="vnc-wrap" bind:this={vncEl}></div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -364,6 +462,17 @@
     border-radius: 0 0 10px 10px;
     padding: 6px;
   }
+  .term-wrap.hidden { display: none; }
+
+  .vnc-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 0 0 10px 10px;
+    position: relative;
+  }
 
   /* Badges */
   .badge {
@@ -374,10 +483,11 @@
     font-weight: 500;
     flex-shrink: 0;
   }
-  .badge.green      { background: rgba(34,197,94,0.15);  color: var(--green); }
-  .badge.red        { background: rgba(239,68,68,0.15);  color: var(--red); }
-  .badge.amber      { background: rgba(245,158,11,0.15); color: var(--amber); }
-  .badge.blue       { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge.green      { background: rgba(34,197,94,0.15);   color: var(--green); }
+  .badge.red        { background: rgba(239,68,68,0.15);   color: var(--red); }
+  .badge.amber      { background: rgba(245,158,11,0.15);  color: var(--amber); }
+  .badge.blue       { background: rgba(59,130,246,0.15);  color: var(--blue); }
+  .badge.purple     { background: rgba(168,85,247,0.15);  color: #a855f7; }
   .badge.muted-badge { background: var(--surface2); color: var(--muted); }
 
   .muted { color: var(--muted); }

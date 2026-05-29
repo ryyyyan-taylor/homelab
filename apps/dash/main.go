@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -137,11 +138,86 @@ func main() {
 		jsonResponse(w, map[string][]string{"lines": lines})
 	})
 
-	// --- Shell tab: SSH terminal over WebSocket ---
+	// --- Shell tab: SSH terminal + VNC console over WebSocket ---
 
 	wsUpgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
+
+	vncUpgrader := websocket.Upgrader{
+		CheckOrigin:  func(r *http.Request) bool { return true },
+		Subprotocols: []string{"binary"},
+	}
+
+	wsDialer := &websocket.Dialer{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // homelab, self-signed Proxmox cert
+		Subprotocols:    []string{"binary"},
+	}
+
+	mux.HandleFunc("GET /api/shell/vncproxy", func(w http.ResponseWriter, r *http.Request) {
+		node := r.URL.Query().Get("node")
+		vmid := r.URL.Query().Get("vmid")
+		if node == "" || vmid == "" {
+			http.Error(w, "missing node or vmid", http.StatusBadRequest)
+			return
+		}
+		data, err := pc.VNCProxy(node, vmid)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		jsonResponse(w, map[string]any{"ticket": data.Ticket, "port": data.Port})
+	})
+
+	mux.HandleFunc("GET /api/shell/vnc", func(w http.ResponseWriter, r *http.Request) {
+		node := r.URL.Query().Get("node")
+		vmid := r.URL.Query().Get("vmid")
+		ticket := r.URL.Query().Get("ticket")
+		port, err := strconv.Atoi(r.URL.Query().Get("port"))
+		if err != nil || node == "" || vmid == "" || ticket == "" {
+			http.Error(w, "missing or invalid params", http.StatusBadRequest)
+			return
+		}
+
+		browserConn, err := vncUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer browserConn.Close()
+
+		vncURL := pc.VNCWebSocketURL(node, "qemu", vmid, port, ticket)
+		proxmoxConn, _, err := wsDialer.Dial(vncURL, nil)
+		if err != nil {
+			log.Printf("VNC dial %s: %v", vncURL, err)
+			return
+		}
+		defer proxmoxConn.Close()
+
+		// Pipe Proxmox → browser
+		go func() {
+			for {
+				mt, msg, err := proxmoxConn.ReadMessage()
+				if err != nil {
+					browserConn.Close()
+					return
+				}
+				if err := browserConn.WriteMessage(mt, msg); err != nil {
+					return
+				}
+			}
+		}()
+
+		// Pipe browser → Proxmox
+		for {
+			mt, msg, err := browserConn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := proxmoxConn.WriteMessage(mt, msg); err != nil {
+				return
+			}
+		}
+	})
 
 	// Parse the SSH private key used to connect to managed hosts.
 	var sshConfig *ssh.ClientConfig

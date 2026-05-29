@@ -175,6 +175,14 @@ type TermProxyData struct {
 	UpID   string `json:"upid"`
 }
 
+// VNCProxyData is returned by Proxmox vncproxy endpoints.
+type VNCProxyData struct {
+	Ticket string `json:"ticket"`
+	Port   int    `json:"port"`
+	Cert   string `json:"cert"`
+	UpID   string `json:"upid"`
+}
+
 // post sends an authenticated POST with an empty body to the Proxmox API.
 func (c *Client) post(path string, out any) error {
 	req, err := http.NewRequest("POST", c.base+path, nil)
@@ -194,6 +202,16 @@ func (c *Client) post(path string, out any) error {
 		return fmt.Errorf("proxmox API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// VNCProxy creates a VNC proxy session for a QEMU VM.
+func (c *Client) VNCProxy(node, vmid string) (VNCProxyData, error) {
+	path := "/api2/json/nodes/" + node + "/qemu/" + vmid + "/vncproxy?websocket=1"
+	var resp pveResponse[VNCProxyData]
+	if err := c.post(path, &resp); err != nil {
+		return VNCProxyData{}, err
+	}
+	return resp.Data, nil
 }
 
 // TermProxy creates a terminal proxy session. targetType is "node" or "lxc".
@@ -224,8 +242,10 @@ func (c *Client) VNCWebSocketURL(node, targetType, vmid string, port int, ticket
 	switch targetType {
 	case "node":
 		path = "/api2/json/nodes/" + node + "/vncwebsocket"
-	default:
+	case "lxc":
 		path = "/api2/json/nodes/" + node + "/lxc/" + vmid + "/vncwebsocket"
+	default: // "qemu"
+		path = "/api2/json/nodes/" + node + "/qemu/" + vmid + "/vncwebsocket"
 	}
 
 	q := url.Values{}
