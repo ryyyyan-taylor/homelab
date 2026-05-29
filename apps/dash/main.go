@@ -164,6 +164,14 @@ func main() {
 		targetType := r.URL.Query().Get("type") // "node" or "lxc"
 		node := r.URL.Query().Get("node")
 		vmid := r.URL.Query().Get("vmid")
+		initCols, _ := strconv.Atoi(r.URL.Query().Get("cols"))
+		initRows, _ := strconv.Atoi(r.URL.Query().Get("rows"))
+		if initCols <= 0 {
+			initCols = 80
+		}
+		if initRows <= 0 {
+			initRows = 24
+		}
 
 		if node == "" || targetType == "" {
 			http.Error(w, "missing node or type", http.StatusBadRequest)
@@ -267,7 +275,7 @@ func main() {
 			}
 		}()
 
-		if err := session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{
+		if err := session.RequestPty("xterm-256color", initRows, initCols, ssh.TerminalModes{
 			ssh.ECHO: 1, ssh.TTY_OP_ISPEED: 14400, ssh.TTY_OP_OSPEED: 14400,
 		}); err != nil {
 			termErr("[PTY request failed: " + err.Error() + "]")

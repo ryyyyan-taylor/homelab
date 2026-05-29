@@ -31,8 +31,10 @@
     connStatus = 'connecting'
     connError = ''
 
+    fitAddon?.fit()  // measure before connecting so we can send accurate initial size
     const params = new URLSearchParams({ type, node })
     if (type === 'lxc') params.set('vmid', String(vmid))
+    if (term) { params.set('cols', String(term.cols)); params.set('rows', String(term.rows)) }
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     const conn = new WebSocket(`${proto}//${location.host}/api/shell/ws?${params}`)
