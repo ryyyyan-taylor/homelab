@@ -149,6 +149,8 @@ func main() {
 		node := r.URL.Query().Get("node")
 		vmid := r.URL.Query().Get("vmid")
 
+		log.Printf("shell/ws: type=%s node=%s vmid=%s", targetType, node, vmid)
+
 		if node == "" || targetType == "" {
 			http.Error(w, "missing node or type", http.StatusBadRequest)
 			return
@@ -157,18 +159,23 @@ func main() {
 		// Get a terminal ticket from Proxmox before upgrading the browser WS.
 		tpData, err := pc.TermProxy(node, targetType, vmid)
 		if err != nil {
+			log.Printf("shell/ws: termproxy error: %v", err)
 			http.Error(w, "termproxy: "+err.Error(), http.StatusBadGateway)
 			return
 		}
+		log.Printf("shell/ws: got ticket port=%d", tpData.Port)
 
 		pveWSURL := pc.VNCWebSocketURL(node, targetType, vmid, tpData.Port, tpData.Ticket)
+		log.Printf("shell/ws: dialing %s", pveWSURL)
 		pveConn, _, err := wsDialer.Dial(pveWSURL, http.Header{
 			"Authorization": {"PVEAPIToken=" + proxmoxToken},
 		})
 		if err != nil {
+			log.Printf("shell/ws: pve dial error: %v", err)
 			http.Error(w, "proxmox ws: "+err.Error(), http.StatusBadGateway)
 			return
 		}
+		log.Printf("shell/ws: pve ws connected, upgrading browser")
 		defer pveConn.Close()
 
 		browserConn, err := wsUpgrader.Upgrade(w, r, nil)
