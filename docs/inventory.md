@@ -400,12 +400,18 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | | `POST /api/semaphore/run/{templateID}` — trigger a Semaphore task, returns `{"task_id": N}` |
 | | `GET /api/semaphore/tasks/{taskID}` — poll task status |
 | | `GET /api/semaphore/tasks/{taskID}/output` — fetch task log lines |
+| | `GET /api/shell/ws` (WebSocket) — SSH terminal for `type=node` or `type=lxc`; PTY size from `cols`/`rows` query params |
+| | `GET /api/shell/vncproxy` — calls Proxmox vncproxy, returns `{ticket, port}` |
+| | `GET /api/shell/vnc` (WebSocket) — transparent proxy to Proxmox vncwebsocket; `binary` subprotocol |
 | **Env vars** | `PROXMOX_URL` (default `https://10.0.1.135:8006`), `PROXMOX_TOKEN` (from `dash-proxmox` secret) |
 | | `SEMAPHORE_URL` (default `http://semaphore.semaphore.svc.cluster.local:3000`), `SEMAPHORE_TOKEN` (from `dash-semaphore` secret), `SEMAPHORE_PROJECT_ID` (default `1`) |
+| | `SHELL_SSH_KEY` (from `dash-ssh` secret, optional) — SSH private key for terminal connections |
 | **Secrets** | `dash/dash-proxmox` — key `token` (Proxmox API token); SOPS: `dash-config/proxmox-secret.sops.yaml` |
 | | `dash/dash-semaphore` — key `token` (Semaphore Bearer token); SOPS: `dash-config/semaphore-secret.sops.yaml` |
-| **Tabs** | Proxmox (nodes + VMs), Kubernetes (nodes + workloads), Semaphore (template cards with Run buttons + live log) |
+| | `dash/dash-ssh` — key `private_key` (SSH private key PEM); not in repo — `kubectl create secret generic dash-ssh -n dash --from-file=private_key=$HOME/.ssh/id_ed25519`; `optional: true` so pod starts without it |
+| **Tabs** | Proxmox (nodes + VMs), Kubernetes (nodes + workloads), Semaphore (template cards with Run buttons + live log), Shell (SSH terminal + VNC console) |
 | **Semaphore tab** | Template cards show last-run status badge + timestamp. Run button triggers task, polls every 2 s, streams output in collapsible log panel. |
+| **Shell tab** | Left sidebar: Proxmox host + LXC containers (SSH terminal) + QEMU VMs (VNC console), each with CPU/RAM bars. Stopped items grayed out. SSH sessions dial the host directly over the LAN; VNC proxied through Go backend via Proxmox vncwebsocket. |
 
 ---
 
@@ -461,6 +467,7 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Semaphore secrets | `semaphore-config/semaphore-secrets.sops.yaml` | Admin credentials + Authentik OIDC client ID/secret |
 | Dash secrets | `dash-config/proxmox-secret.sops.yaml` | Proxmox API token for `dash-proxmox` secret in `dash` namespace |
 | | `dash-config/semaphore-secret.sops.yaml` | Semaphore Bearer API token for `dash-semaphore` secret in `dash` namespace |
+| Dash SSH key | `dash/dash-ssh` Secret (not in repo — create manually) | SSH private key for Shell tab terminal connections; optional — pod starts without it |
 
 ## Cluster Rebuild
 
