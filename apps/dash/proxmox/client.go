@@ -176,9 +176,10 @@ type TermProxyData struct {
 }
 
 // VNCProxyData is returned by Proxmox vncproxy endpoints.
+// Port is a string because Proxmox serialises it as a JSON string, not a number.
 type VNCProxyData struct {
 	Ticket string `json:"ticket"`
-	Port   int    `json:"port"`
+	Port   string `json:"port"`
 	Cert   string `json:"cert"`
 	UpID   string `json:"upid"`
 }

@@ -166,7 +166,8 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		jsonResponse(w, map[string]any{"ticket": data.Ticket, "port": data.Port})
+		port, _ := strconv.Atoi(data.Port)
+		jsonResponse(w, map[string]any{"ticket": data.Ticket, "port": port})
 	})
 
 	mux.HandleFunc("GET /api/shell/vnc", func(w http.ResponseWriter, r *http.Request) {
