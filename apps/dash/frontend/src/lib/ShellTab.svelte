@@ -47,8 +47,6 @@
     conn.onmessage = (e) => {
       if (e.data instanceof ArrayBuffer) {
         term?.write(new Uint8Array(e.data))
-      } else if (typeof e.data === 'string' && e.data.startsWith('3')) {
-        conn.send('2') // pong
       }
     }
 
@@ -107,7 +105,7 @@
 
     term.onData((data) => {
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send('0:' + btoa(unescape(encodeURIComponent(data))) + ':')
+        ws.send(new TextEncoder().encode(data))
       }
     })
 

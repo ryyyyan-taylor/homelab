@@ -41,6 +41,12 @@ spec:
                 secretKeyRef:
                   name: dash-semaphore
                   key: token
+            - name: SHELL_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dash-ssh
+                  key: private_key
+                  optional: true
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -10,8 +9,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/ssh"
+
 	"github.com/ryyyyan-taylor/homelab/apps/dash/k8s"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/proxmox"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/semaphore"
@@ -135,13 +137,27 @@ func main() {
 		jsonResponse(w, map[string][]string{"lines": lines})
 	})
 
-	// --- Shell tab: WebSocket terminal proxy ---
+	// --- Shell tab: SSH terminal over WebSocket ---
 
 	wsUpgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-	wsDialer := &websocket.Dialer{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // Proxmox self-signed cert
+
+	// Parse the SSH private key used to connect to managed hosts.
+	var sshConfig *ssh.ClientConfig
+	if keyPEM := strings.ReplaceAll(env("SHELL_SSH_KEY", ""), `\n`, "\n"); keyPEM != "" {
+		signer, err := ssh.ParsePrivateKey([]byte(keyPEM))
+		if err != nil {
+			log.Printf("warning: failed to parse SHELL_SSH_KEY (%v) — Shell tab will show errors", err)
+		} else {
+			sshConfig = &ssh.ClientConfig{
+				User:            "root",
+				Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // homelab, no known_hosts
+			}
+		}
+	} else {
+		log.Printf("warning: SHELL_SSH_KEY not set — Shell tab will show errors")
 	}
 
 	mux.HandleFunc("GET /api/shell/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -149,70 +165,141 @@ func main() {
 		node := r.URL.Query().Get("node")
 		vmid := r.URL.Query().Get("vmid")
 
-		log.Printf("shell/ws: type=%s node=%s vmid=%s", targetType, node, vmid)
-
 		if node == "" || targetType == "" {
 			http.Error(w, "missing node or type", http.StatusBadRequest)
 			return
 		}
 
-		// Get a terminal ticket from Proxmox before upgrading the browser WS.
-		tpData, err := pc.TermProxy(node, targetType, vmid)
-		if err != nil {
-			log.Printf("shell/ws: termproxy error: %v", err)
-			http.Error(w, "termproxy: "+err.Error(), http.StatusBadGateway)
-			return
-		}
-		log.Printf("shell/ws: got ticket port=%d", tpData.Port)
-
-		pveWSURL := pc.VNCWebSocketURL(node, targetType, vmid, tpData.Port, tpData.Ticket)
-		log.Printf("shell/ws: dialing %s", pveWSURL)
-		pveConn, _, err := wsDialer.Dial(pveWSURL, http.Header{
-			"Authorization": {"PVEAPIToken=" + proxmoxToken},
-		})
-		if err != nil {
-			log.Printf("shell/ws: pve dial error: %v", err)
-			http.Error(w, "proxmox ws: "+err.Error(), http.StatusBadGateway)
-			return
-		}
-		log.Printf("shell/ws: pve ws connected, upgrading browser")
-		defer pveConn.Close()
-
+		// Upgrade the browser connection first so errors can appear inside the terminal.
 		browserConn, err := wsUpgrader.Upgrade(w, r, nil)
 		if err != nil {
-			return // upgrader already wrote the error response
+			return
 		}
 		defer browserConn.Close()
 
-		// Proxy frames bidirectionally until either side closes.
-		errc := make(chan error, 2)
+		termErr := func(msg string) {
+			browserConn.WriteMessage(websocket.BinaryMessage, []byte("\r\n\x1b[31m"+msg+"\x1b[0m\r\n"))
+		}
+
+		if sshConfig == nil {
+			termErr("[error: SHELL_SSH_KEY is not configured on this pod]")
+			return
+		}
+
+		// Resolve the target SSH host.
+		var sshHost string
+		switch targetType {
+		case "node":
+			sshHost = pc.HostAddr() + ":22"
+		case "lxc":
+			addr, err := pc.GetLXCSSHAddr(node, vmid)
+			if err != nil {
+				termErr("[error: " + err.Error() + "]")
+				return
+			}
+			sshHost = addr + ":22"
+		default:
+			termErr("[error: unsupported target type: " + targetType + "]")
+			return
+		}
+
+		sshClient, err := ssh.Dial("tcp", sshHost, sshConfig)
+		if err != nil {
+			termErr("[SSH connect failed: " + err.Error() + "]")
+			return
+		}
+		defer sshClient.Close()
+
+		session, err := sshClient.NewSession()
+		if err != nil {
+			termErr("[SSH session failed: " + err.Error() + "]")
+			return
+		}
+		defer session.Close()
+
+		stdinPipe, err := session.StdinPipe()
+		if err != nil {
+			termErr("[stdin pipe: " + err.Error() + "]")
+			return
+		}
+
+		stdoutPipe, err := session.StdoutPipe()
+		if err != nil {
+			termErr("[stdout pipe: " + err.Error() + "]")
+			return
+		}
+		stderrPipe, err := session.StderrPipe()
+		if err != nil {
+			termErr("[stderr pipe: " + err.Error() + "]")
+			return
+		}
+
+		// goroutine-safe write to the browser terminal.
+		var wsMu sync.Mutex
+		writeWS := func(p []byte) {
+			wsMu.Lock()
+			defer wsMu.Unlock()
+			browserConn.WriteMessage(websocket.BinaryMessage, p)
+		}
+
 		go func() {
+			buf := make([]byte, 4096)
 			for {
-				mt, msg, err := browserConn.ReadMessage()
-				if err != nil {
-					errc <- err
-					return
+				n, err := stdoutPipe.Read(buf)
+				if n > 0 {
+					writeWS(buf[:n])
 				}
-				if err := pveConn.WriteMessage(mt, msg); err != nil {
-					errc <- err
+				if err != nil {
 					return
 				}
 			}
 		}()
 		go func() {
+			buf := make([]byte, 4096)
 			for {
-				mt, msg, err := pveConn.ReadMessage()
-				if err != nil {
-					errc <- err
-					return
+				n, err := stderrPipe.Read(buf)
+				if n > 0 {
+					writeWS(buf[:n])
 				}
-				if err := browserConn.WriteMessage(mt, msg); err != nil {
-					errc <- err
+				if err != nil {
 					return
 				}
 			}
 		}()
-		<-errc
+
+		if err := session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{
+			ssh.ECHO: 1, ssh.TTY_OP_ISPEED: 14400, ssh.TTY_OP_OSPEED: 14400,
+		}); err != nil {
+			termErr("[PTY request failed: " + err.Error() + "]")
+			return
+		}
+
+		if err := session.Shell(); err != nil {
+			termErr("[shell start failed: " + err.Error() + "]")
+			return
+		}
+
+		// Forward browser input → SSH stdin. Text frames "1:cols:rows:" are resize signals.
+		for {
+			mt, msg, err := browserConn.ReadMessage()
+			if err != nil {
+				break
+			}
+			if mt == websocket.TextMessage {
+				if s := string(msg); strings.HasPrefix(s, "1:") {
+					parts := strings.Split(s[2:], ":")
+					if len(parts) >= 2 {
+						cols, _ := strconv.Atoi(parts[0])
+						rows, _ := strconv.Atoi(parts[1])
+						if cols > 0 && rows > 0 {
+							session.WindowChange(rows, cols)
+						}
+					}
+				}
+			} else if mt == websocket.BinaryMessage {
+				stdinPipe.Write(msg) //nolint:errcheck
+			}
+		}
 	})
 
 	dist, err := fs.Sub(frontend, "frontend/dist")

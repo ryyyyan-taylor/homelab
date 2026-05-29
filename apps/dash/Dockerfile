@@ -5,7 +5,7 @@ RUN yarn install --frozen-lockfile
 COPY frontend/ ./
 RUN yarn build
 
-FROM golang:1.23-alpine AS backend
+FROM golang:1.25-alpine AS backend
 WORKDIR /app
 COPY go.mod ./
 RUN go mod download

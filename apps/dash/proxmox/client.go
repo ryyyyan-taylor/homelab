@@ -233,3 +233,35 @@ func (c *Client) VNCWebSocketURL(node, targetType, vmid string, port int, ticket
 	q.Set("vncticket", ticket)
 	return wsBase + path + "?" + q.Encode()
 }
+
+// HostAddr returns just the hostname/IP of the Proxmox host (no port, no scheme).
+func (c *Client) HostAddr() string {
+	u, err := url.Parse(c.base)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+// GetLXCSSHAddr fetches the static IPv4 address configured on an LXC container's
+// primary network interface. Returns an error if DHCP is in use or no IP is found.
+func (c *Client) GetLXCSSHAddr(node, vmid string) (string, error) {
+	var resp pveResponse[map[string]string]
+	if err := c.get("/api2/json/nodes/"+node+"/lxc/"+vmid+"/config", &resp); err != nil {
+		return "", fmt.Errorf("lxc config: %w", err)
+	}
+	net0 := resp.Data["net0"]
+	for _, part := range strings.Split(net0, ",") {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) == 2 && kv[0] == "ip" {
+			if kv[1] == "dhcp" {
+				return "", fmt.Errorf("LXC uses DHCP — cannot determine IP")
+			}
+			if idx := strings.IndexByte(kv[1], '/'); idx != -1 {
+				return kv[1][:idx], nil
+			}
+			return kv[1], nil
+		}
+	}
+	return "", fmt.Errorf("no static IP configured for LXC %s", vmid)
+}
