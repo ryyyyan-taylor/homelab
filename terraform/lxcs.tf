@@ -342,3 +342,76 @@ resource "proxmox_virtual_environment_container" "network" {
     ignore_changes = [operating_system]
   }
 }
+
+# CT 170 — Ollama (GPU LXC)
+# GPU device passthrough is set directly in Proxmox and not tracked by Terraform:
+#   lxc.cgroup2.devices.allow + lxc.mount.entry for /dev/nvidia*, see PLAN.md Phase B
+resource "proxmox_virtual_environment_container" "ollama" {
+  node_name     = "rt"
+  vm_id         = 170
+  unprivileged  = true
+  started       = true
+  start_on_boot = false # start on demand; auto-start would eat RAM reserved for Talos
+
+  cpu {
+    architecture = "amd64"
+    cores        = 4
+  }
+
+  memory {
+    dedicated = 6144
+    swap      = 512
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  initialization {
+    hostname = "ollama"
+
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.170/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  disk {
+    datastore_id = "local-lvm"
+    size         = 30
+  }
+
+  network_interface {
+    name     = "eth0"
+    bridge   = "vmbr0"
+    firewall = true
+  }
+
+  features {
+    nesting = true
+  }
+
+  operating_system {
+    template_file_id = "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
+    type             = "debian"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      started,
+      operating_system,
+    ]
+  }
+}
