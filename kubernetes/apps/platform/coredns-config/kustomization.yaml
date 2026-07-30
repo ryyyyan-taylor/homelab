@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: kube-system
 resources:
   - coredns-cm.yaml
+  - coredns-deployment.yaml
 patches:
   - patch: |-
       apiVersion: apps/v1
