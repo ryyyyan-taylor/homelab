@@ -74,6 +74,21 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | 153 | terraria | `10.0.1.153` | Terraria server | Internet-exposed TCP 7777 |
 | 160 | pi-hole | `10.0.1.160` | DNS + ad-blocking | Host networking on :53 |
 | 161 | network | `10.0.1.161` | Tailscale subnet router | Privileged LXC; advertises `10.0.1.0/24` |
+| 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434`, models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text` |
+
+### GPU passthrough (host → CT 170)
+
+Host NVIDIA driver: `nvidia-open-kernel-dkms` 550.163.01 (Debian `contrib` +
+`non-free`), kernel module built only against `6.14.11-9-pve` — **host is
+pinned to that kernel** (`GRUB_DEFAULT=saved` + `grub-set-default`,
+`apt-mark hold` on that kernel's packages) because the driver doesn't build
+against newer Proxmox kernels yet. `nvidia-persistenced` keeps the base GPU
+device initialized; a custom `nvidia-uvm-init.service` recreates
+`/dev/nvidia-uvm*` at boot (no udev rule does this automatically on this
+system). Device passthrough into CT 170 is set directly in
+`/etc/pve/lxc/170.conf` (`lxc.cgroup2.devices.allow` + `lxc.mount.entry`) —
+outside Terraform state, must be re-added by hand if the container is ever
+recreated. See `PLAN.md` Local LLM section for full gotchas.
 
 ---
 
