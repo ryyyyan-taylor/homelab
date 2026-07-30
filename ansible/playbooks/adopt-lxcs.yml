@@ -1,13 +1,14 @@
 ---
 - name: Adopt all LXCs
-  hosts: game_servers,infrastructure
+  hosts: game_servers,infrastructure,ai
   remote_user: root
+  ignore_unreachable: true
   vars_files:
-    - "{{ playbook_dir }}/../group_vars/all/vars.yml"
+    - "{{ playbook_dir }}/../inventory/group_vars/all/vars.yml"
   pre_tasks:
     - name: Load all-group secrets (LDAP bind password etc.)
       community.sops.load_vars:
-        file: "{{ playbook_dir }}/../group_vars/all/secrets.sops.yaml"
+        file: "{{ playbook_dir }}/../inventory/group_vars/all/secrets.sops.yaml"
   roles:
     - base
     - sssd
@@ -15,41 +16,53 @@
 - name: Configure pi-hole
   hosts: pi-hole
   remote_user: root
+  ignore_unreachable: true
   roles:
     - pihole
 
 - name: Configure network LXC
   hosts: network
   remote_user: root
+  ignore_unreachable: true
   roles:
     - network
 
 - name: Configure Minecraft server
   hosts: minecraft
   remote_user: root
+  ignore_unreachable: true
   pre_tasks:
     - name: Load game server secrets
       community.sops.load_vars:
-        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+        file: "{{ playbook_dir }}/../inventory/group_vars/game_servers/secrets.sops.yaml"
   roles:
     - minecraft
 
 - name: Configure Terraria server
   hosts: terraria
   remote_user: root
+  ignore_unreachable: true
   pre_tasks:
     - name: Load game server secrets
       community.sops.load_vars:
-        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+        file: "{{ playbook_dir }}/../inventory/group_vars/game_servers/secrets.sops.yaml"
   roles:
     - terraria
 
 - name: Configure Corekeeper server
   hosts: corekeeper
   remote_user: root
+  ignore_unreachable: true
   pre_tasks:
     - name: Load game server secrets
       community.sops.load_vars:
-        file: "{{ playbook_dir }}/../group_vars/game_servers/secrets.sops.yaml"
+        file: "{{ playbook_dir }}/../inventory/group_vars/game_servers/secrets.sops.yaml"
   roles:
     - corekeeper
+
+- name: Configure Ollama server
+  hosts: ollama
+  remote_user: root
+  ignore_unreachable: true
+  roles:
+    - ollama

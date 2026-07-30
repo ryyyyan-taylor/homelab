@@ -8,6 +8,7 @@
       - libnss-sss
       - libsss-sudo
       - oddjob-mkhomedir
+      - sudo
     state: present
     update_cache: true
 

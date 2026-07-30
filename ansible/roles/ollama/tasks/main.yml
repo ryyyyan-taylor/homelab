@@ -1,0 +1,111 @@
+---
+- name: Enable non-free component (needed for libcuda1/libnvidia-ml1)
+  replace:
+    path: /etc/apt/sources.list.d/debian.sources
+    regexp: '^Components: contrib main$'
+    replace: "Components: contrib main non-free"
+
+- name: Install NVIDIA userspace driver libs matching the host, plus zstd
+  apt:
+    name:
+      - "libcuda1={{ ollama_nvidia_driver_version }}"
+      - "libnvidia-ml1={{ ollama_nvidia_driver_version }}"
+      - "nvidia-smi={{ ollama_nvidia_driver_version }}"
+      - zstd
+    state: present
+    update_cache: true
+
+- name: Check installed ollama version
+  command: /usr/bin/ollama --version
+  register: _ollama_version
+  changed_when: false
+  failed_when: false
+
+- name: Install ollama
+  when: ollama_version not in (_ollama_version.stdout | default(''))
+  block:
+    - name: Download ollama release tarball
+      get_url:
+        url: "https://github.com/ollama/ollama/releases/download/v{{ ollama_version }}/ollama-linux-amd64.tar.zst"
+        dest: "/tmp/ollama-{{ ollama_version }}.tar.zst"
+        mode: "0644"
+      check_mode: false
+
+    - name: Create extraction directory
+      file:
+        path: "/tmp/ollama-{{ ollama_version }}"
+        state: directory
+        mode: "0755"
+      check_mode: false
+
+    - name: Extract ollama tarball (zstd, unarchive module can't be relied on for .tar.zst)
+      command: >
+        tar --zstd -xf /tmp/ollama-{{ ollama_version }}.tar.zst
+        -C /tmp/ollama-{{ ollama_version }}
+      check_mode: false
+
+    - name: Install ollama binary
+      copy:
+        src: "/tmp/ollama-{{ ollama_version }}/bin/ollama"
+        dest: /usr/bin/ollama
+        mode: "0755"
+        remote_src: true
+      notify: Restart ollama
+
+    - name: Ensure ollama lib directory exists
+      file:
+        path: /usr/lib/ollama
+        state: directory
+        mode: "0755"
+
+    - name: Install ollama lib directory (bundled CUDA runtime, matched relative to /usr/bin/ollama)
+      # copy (even remote_src) drops symlinks when copying a directory tree,
+      # which breaks the .so -> .so.0 -> .so.0.0.1 SONAME chains these libs
+      # rely on ("libllama-common.so.0: cannot open shared object file").
+      # cp -a preserves them.
+      command: >
+        cp -a /tmp/ollama-{{ ollama_version }}/lib/ollama/. /usr/lib/ollama/
+      notify: Restart ollama
+
+- name: Create ollama system user
+  user:
+    name: ollama
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Create ollama models directory
+  file:
+    path: "{{ ollama_models_dir }}"
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: "0750"
+
+- name: Install ollama systemd unit
+  template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    mode: "0644"
+  notify: Restart ollama
+
+- name: Enable and start ollama
+  systemd:
+    name: ollama
+    enabled: true
+    state: started
+    daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Wait for ollama API to accept connections
+  wait_for:
+    port: 11434
+    host: 127.0.0.1
+    timeout: 30
+  when: not ansible_check_mode
+
+- name: Pull default models
+  command: "/usr/bin/ollama pull {{ item }}"
+  loop: "{{ ollama_pull_models }}"
+  changed_when: false
+  when: not ansible_check_mode

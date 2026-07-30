@@ -31,3 +31,10 @@ all:
           ansible_host: 10.0.1.161
           ansible_user: root
           proxmox_vmid: 161
+
+    ai:
+      hosts:
+        ollama:
+          ansible_host: 10.0.1.170
+          ansible_user: root
+          proxmox_vmid: 170

@@ -1,0 +1,15 @@
+---
+ollama_version: "0.32.5"
+
+# Must match the Proxmox host's NVIDIA driver exactly (PLAN.md Phase A/B
+# gotchas) — the container has no kernel module of its own, only the
+# userspace driver libraries talking to the host's passed-through devices.
+ollama_nvidia_driver_version: "550.163.01-2"
+
+ollama_host: "0.0.0.0:11434"
+ollama_models_dir: /var/lib/ollama/models
+
+ollama_pull_models:
+  - qwen2.5:3b
+  - llama3.2:3b
+  - nomic-embed-text
