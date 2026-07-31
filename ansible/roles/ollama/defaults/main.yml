@@ -13,6 +13,7 @@ ollama_pull_models:
   - qwen2.5:3b
   - llama3.2:3b
   - nomic-embed-text
+  - qwen2.5-coder:3b # Aider (coding-tuned, still fits 4GB VRAM)
 
 # Sources allowed to reach the Ollama API (11434) — everything else gets
 # rejected. Enforced via nftables inside the container itself, not Proxmox's
