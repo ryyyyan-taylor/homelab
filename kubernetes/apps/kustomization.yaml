@@ -29,3 +29,4 @@ resources:
   - platform/cluster-health/application.yaml
   - platform/semaphore-config/application.yaml
   - platform/semaphore/application.yaml
+  - platform/open-webui/application.yaml
