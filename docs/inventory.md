@@ -74,7 +74,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | 153 | terraria | `10.0.1.153` | Terraria server | Internet-exposed TCP 7777 |
 | 160 | pi-hole | `10.0.1.160` | DNS + ad-blocking | Host networking on :53 |
 | 161 | network | `10.0.1.161` | Tailscale subnet router | Privileged LXC; advertises `10.0.1.0/24` |
-| 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434`, models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text` |
+| 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434` (restricted via in-container `nftables` to k8s pod CIDR + node IPs + Tailscale — see `ollama` Ansible role), models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text` |
 
 ### GPU passthrough (host → CT 170)
 
