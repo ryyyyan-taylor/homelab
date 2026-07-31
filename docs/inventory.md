@@ -198,6 +198,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Storage path | `/opt/local-path-provisioner` on each node |
 | Notes | Patched via Kustomize to set `storageclass.kubernetes.io/is-default-class: "true"` |
 | Known gotcha | Talos requires `pod-security.kubernetes.io/enforce: privileged` label on `local-path-storage` namespace — the helper pod uses hostPath volumes which `baseline` policy forbids |
+| Known gotcha | Memory limit was originally `32Mi` — too tight, caused chronic OOMKilling (2436 restarts over 64 days) that silently blocked new PVCs from binding cluster-wide. Raised to `64Mi` limit / `32Mi` request (CPU `10m`/`200m`). |
 
 ### Authentik
 
@@ -375,6 +376,19 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Image | `traefik/whoami:latest` |
 | Purpose | Verifies end-to-end SSO: Traefik → Authentik forward-auth → authenticated response with `X-Authentik-*` headers |
 | Middleware | `authentik-forwardauth` (Traefik namespace, cross-namespace reference) |
+
+### Open WebUI
+
+| | |
+|---|---|
+| Namespace | `open-webui` |
+| URL | `https://chat.lab.ryantaylor.tech` |
+| Image | `ghcr.io/open-webui/open-webui:0.11.0` |
+| Backend | Ollama on CT 170 (`OLLAMA_BASE_URL=http://10.0.1.170:11434`) |
+| Auth | `authentik-forwardauth` middleware + `WEBUI_AUTH_TRUSTED_EMAIL_HEADER`/`WEBUI_AUTH_TRUSTED_NAME_HEADER` env vars, so Open WebUI auto-logs in from the forwarded headers instead of showing its own separate login screen |
+| Storage | 5Gi PVC on `local-path` at `/app/backend/data` |
+| Resources | req `cpu 200m / mem 1Gi`, lim `cpu 2 / mem 2Gi` — revised up from an initial `100m/512Mi`/`1/1Gi` guess after an OOMKill loading the default embedding model (`sentence-transformers`/PyTorch) on first boot |
+| Secrets | `WEBUI_SECRET_KEY` via KSOPS (`kubernetes/apps/platform/open-webui/webui-secrets.sops.yaml`) |
 
 ### Semaphore
 
