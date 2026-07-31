@@ -74,7 +74,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | 153 | terraria | `10.0.1.153` | Terraria server | Internet-exposed TCP 7777 |
 | 160 | pi-hole | `10.0.1.160` | DNS + ad-blocking | Host networking on :53 |
 | 161 | network | `10.0.1.161` | Tailscale subnet router | Privileged LXC; advertises `10.0.1.0/24` |
-| 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434` (restricted via in-container `nftables` to k8s pod CIDR + node IPs + Tailscale — see `ollama` Ansible role), models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text` |
+| 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434` (restricted via in-container `nftables` to k8s pod CIDR + node IPs + Tailscale + Aider desktop IP — see `ollama` Ansible role), models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text`, `qwen2.5-coder:3b` |
 
 ### GPU passthrough (host → CT 170)
 
@@ -389,6 +389,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Storage | 5Gi PVC on `local-path` at `/app/backend/data` |
 | Resources | req `cpu 200m / mem 1Gi`, lim `cpu 2 / mem 2Gi` — revised up from an initial `100m/512Mi`/`1/1Gi` guess after an OOMKill loading the default embedding model (`sentence-transformers`/PyTorch) on first boot |
 | Secrets | `WEBUI_SECRET_KEY` via KSOPS (`kubernetes/apps/platform/open-webui/webui-secrets.sops.yaml`) |
+| Cluster RBAC | Dedicated `open-webui-cluster-reader` ServiceAccount + ClusterRole, read-only (`get`/`list`/`watch` on pods/pods-log/events/nodes/namespaces/services/deployments/replicasets/statefulsets/daemonsets; no `secrets`, no write/exec/port-forward) — `rbac.yaml`. Backs a Kubernetes read-only "Tool" (`tools/k8s-readonly.py`) for log/status inspection from chat. Requires the `qwen2.5:3b` model, not `qwen2.5-coder:3b` — the coder variant doesn't reliably emit Ollama's structured `tool_calls` format despite `ollama show` listing "tools" as a capability. |
 
 ### Semaphore
 
