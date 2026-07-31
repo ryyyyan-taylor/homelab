@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: open-webui
 resources:
   - application.yaml
+  - rbac.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml

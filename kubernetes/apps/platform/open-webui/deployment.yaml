@@ -15,6 +15,7 @@ spec:
       labels:
         app: open-webui
     spec:
+      serviceAccountName: open-webui-cluster-reader
       containers:
         - name: open-webui
           image: ghcr.io/open-webui/open-webui:0.11.0
