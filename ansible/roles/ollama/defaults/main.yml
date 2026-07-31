@@ -26,3 +26,4 @@ ollama_api_allowed_sources:
   - 10.0.1.201 # talos-worker-1
   - 10.0.1.202 # talos-worker-2
   - 100.64.0.0/10 # Tailscale CGNAT range
+  - 10.0.1.101/32 # ryan-desktop (Aider) — DHCP-dynamic, update if it ever changes
