@@ -4,3 +4,8 @@
     name: ollama
     state: restarted
   ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Reload nftables
+  command: nft -f /etc/nftables.conf
+  changed_when: false
+  ignore_errors: "{{ ansible_check_mode }}"

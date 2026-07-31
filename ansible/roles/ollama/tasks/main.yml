@@ -109,3 +109,24 @@
   loop: "{{ ollama_pull_models }}"
   changed_when: false
   when: not ansible_check_mode
+
+- name: Ensure nftables is installed
+  apt:
+    name: nftables
+    state: present
+
+- name: Restrict Ollama API (11434) to cluster/Tailscale via nftables
+  template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Reload nftables
+
+- name: Enable and start nftables
+  systemd:
+    name: nftables
+    enabled: true
+    state: started
+  ignore_errors: "{{ ansible_check_mode }}"

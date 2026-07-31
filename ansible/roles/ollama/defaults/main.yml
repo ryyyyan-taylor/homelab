@@ -13,3 +13,16 @@ ollama_pull_models:
   - qwen2.5:3b
   - llama3.2:3b
   - nomic-embed-text
+
+# Sources allowed to reach the Ollama API (11434) — everything else gets
+# rejected. Enforced via nftables inside the container itself, not Proxmox's
+# firewall (see PLAN.md Known Issues: enabling Proxmox's cluster-wide
+# firewall switch would also start evaluating traffic for the Talos VMs,
+# which all have firewall=true set too — far bigger blast radius than
+# intended for this one container).
+ollama_api_allowed_sources:
+  - 10.244.0.0/16 # k8s pod CIDR (Open WebUI, Phase E)
+  - 10.0.1.200 # talos-cp
+  - 10.0.1.201 # talos-worker-1
+  - 10.0.1.202 # talos-worker-2
+  - 100.64.0.0/10 # Tailscale CGNAT range

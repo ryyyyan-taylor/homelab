@@ -1,0 +1,20 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter;
+
+		# Ollama API (11434) restricted to cluster + Tailscale — see PLAN.md
+		# Phase D. Everything else (SSH, node_exporter, etc.) is untouched.
+		tcp dport 11434 ip saddr { {{ ollama_api_allowed_sources | join(', ') }} } accept
+		tcp dport 11434 reject
+	}
+	chain forward {
+		type filter hook forward priority filter;
+	}
+	chain output {
+		type filter hook output priority filter;
+	}
+}
