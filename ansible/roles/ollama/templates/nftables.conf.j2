@@ -8,6 +8,9 @@ table inet filter {
 
 		# Ollama API (11434) restricted to cluster + Tailscale — see PLAN.md
 		# Phase D. Everything else (SSH, node_exporter, etc.) is untouched.
+		# Loopback must be allowed explicitly - `ollama` CLI itself talks to
+		# 127.0.0.1, which otherwise gets caught by the reject rule below.
+		iifname "lo" accept
 		tcp dport 11434 ip saddr { {{ ollama_api_allowed_sources | join(', ') }} } accept
 		tcp dport 11434 reject
 	}
