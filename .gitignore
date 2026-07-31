@@ -28,3 +28,12 @@ Thumbs.db
 # Claude Code & local planning
 CLAUDE.md
 PLAN.md
+
+# Aider (local coding assistant, points at Ollama on CT170) — personal
+# dev-tool config, not shared infra
+.env
+.aider.conf.yml
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.*/
+.aider*
