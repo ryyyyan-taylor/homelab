@@ -46,14 +46,15 @@ spec:
               cpu: 1000m
               memory: 768Mi
           readinessProbe:
-            httpGet:
-              path: /version
+            # /version requires the Authorization header in Lavalink 4.2.x,
+            # and probe httpHeaders can't source a secret — tcpSocket is
+            # sufficient to confirm the server is up and listening.
+            tcpSocket:
               port: 2333
             initialDelaySeconds: 15
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /version
+            tcpSocket:
               port: 2333
             initialDelaySeconds: 30
             periodSeconds: 15
