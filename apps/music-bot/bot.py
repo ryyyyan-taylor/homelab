@@ -134,11 +134,18 @@ class MusicBot(discord.Client):
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         if payload.player is not None:
             await _fill_lookahead(payload.player)
+            await _update_now_playing(payload.player)
+
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
+        player = payload.player
+        if player is not None and not player.playing and not player.queue and not getattr(player, "pending", None):
+            await _clear_now_playing(player, "Queue finished.")
 
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
         home = getattr(player, "home", None)
         if home is not None:
             await home.send(f"Leaving — inactive for {IDLE_TIMEOUT_SECONDS}s.")
+        await _clear_now_playing(player, "Disconnected (inactive).")
         await player.disconnect()
 
 
@@ -153,15 +160,115 @@ async def _get_player(interaction: discord.Interaction, *, connect: bool = False
         if voice_state is None or voice_state.channel is None:
             await interaction.response.send_message("Join a voice channel first.", ephemeral=True)
             return None
-        player = await voice_state.channel.connect(cls=wavelink.Player)
+        player = await voice_state.channel.connect(cls=wavelink.Player, self_deaf=True)
         player.inactive_timeout = IDLE_TIMEOUT_SECONDS
         player.home = interaction.channel
         player.pending = deque()
+        player.now_playing_message = None
         # partial: advance through player.queue automatically, but never
         # append unsolicited "recommended" tracks when it empties (D4).
         player.autoplay = wavelink.AutoPlayMode.partial
 
     return player  # type: ignore[return-value]
+
+
+def _play_pause_label(player: wavelink.Player) -> tuple[str, str]:
+    return ("▶️", "Resume") if player.paused else ("⏸️", "Pause")
+
+
+class NowPlayingView(discord.ui.View):
+    def __init__(self, player: wavelink.Player) -> None:
+        super().__init__(timeout=None)
+        self.player = player
+        emoji, label = _play_pause_label(player)
+        self.play_pause.emoji = emoji
+        self.play_pause.label = label
+
+    @discord.ui.button(style=discord.ButtonStyle.secondary, row=0)
+    async def play_pause(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self.player.pause(not self.player.paused)
+        await _update_now_playing(self.player, interaction=interaction)
+
+    @discord.ui.button(emoji="⏮️", label="Previous", style=discord.ButtonStyle.secondary, row=0)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if await _play_previous(self.player):
+            await interaction.response.defer()
+        else:
+            await interaction.response.send_message("No previous track.", ephemeral=True)
+
+    @discord.ui.button(emoji="⏭️", label="Skip", style=discord.ButtonStyle.secondary, row=0)
+    async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if self.player.playing:
+            await self.player.skip(force=True)
+            await interaction.response.defer()
+        else:
+            await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+
+    @discord.ui.button(emoji="🔀", label="Shuffle", style=discord.ButtonStyle.secondary, row=0)
+    async def shuffle_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        self.player.queue.shuffle()
+        await interaction.response.send_message("Shuffled.", ephemeral=True)
+
+
+def _now_playing_embed(player: wavelink.Player) -> discord.Embed | None:
+    track = player.current
+    if track is None:
+        return None
+    status = "⏸️ Paused" if player.paused else "▶️ Playing"
+    embed = discord.Embed(title=track.title, description=f"by `{track.author}`\n\n{status}")
+    if track.artwork:
+        embed.set_thumbnail(url=track.artwork)
+    return embed
+
+
+async def _update_now_playing(player: wavelink.Player, *, interaction: discord.Interaction | None = None) -> None:
+    embed = _now_playing_embed(player)
+    home = getattr(player, "home", None)
+    message: discord.Message | None = getattr(player, "now_playing_message", None)
+
+    if embed is None:
+        if interaction is not None:
+            await interaction.response.defer()
+        return
+
+    view = NowPlayingView(player)
+
+    if interaction is not None:
+        await interaction.response.edit_message(embed=embed, view=view)
+        player.now_playing_message = interaction.message
+        return
+
+    if message is not None:
+        try:
+            await message.edit(embed=embed, view=view)
+            return
+        except discord.HTTPException:
+            pass
+
+    if home is not None:
+        player.now_playing_message = await home.send(embed=embed, view=view)
+
+
+async def _clear_now_playing(player: wavelink.Player, text: str) -> None:
+    message: discord.Message | None = getattr(player, "now_playing_message", None)
+    if message is None:
+        return
+    try:
+        await message.edit(content=text, embed=None, view=None)
+    except discord.HTTPException:
+        pass
+    player.now_playing_message = None
+
+
+async def _play_previous(player: wavelink.Player) -> bool:
+    history = player.queue.history
+    if history is None or len(history) < 2:
+        return False
+    previous_track = history[-2]
+    del history[-1]
+    del history[-1]
+    await player.play(previous_track)
+    return True
 
 
 async def _resolve_one(meta: TrackMeta) -> wavelink.Playable | None:
@@ -256,6 +363,7 @@ async def pause(interaction: discord.Interaction) -> None:
         return
     await player.pause(True)
     await interaction.response.send_message("Paused.")
+    await _update_now_playing(player)
 
 
 @bot.tree.command(description="Resume playback")
@@ -266,6 +374,17 @@ async def resume(interaction: discord.Interaction) -> None:
         return
     await player.pause(False)
     await interaction.response.send_message("Resumed.")
+    await _update_now_playing(player)
+
+
+@bot.tree.command(description="Shuffle the current queue")
+async def shuffle(interaction: discord.Interaction) -> None:
+    player = await _get_player(interaction)
+    if player is None or not player.queue:
+        await interaction.response.send_message("Queue is empty.", ephemeral=True)
+        return
+    player.queue.shuffle()
+    await interaction.response.send_message("Shuffled.")
 
 
 @bot.tree.command(description="Show the current queue")
@@ -298,6 +417,7 @@ async def leave(interaction: discord.Interaction) -> None:
     if player is None:
         await interaction.response.send_message("Not connected to a voice channel.", ephemeral=True)
         return
+    await _clear_now_playing(player, "Disconnected.")
     await player.disconnect()
     await interaction.response.send_message("Disconnected.")
 
