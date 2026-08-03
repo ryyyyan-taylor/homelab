@@ -393,20 +393,25 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Secrets | `WEBUI_SECRET_KEY` via KSOPS (`kubernetes/apps/platform/open-webui/webui-secrets.sops.yaml`) |
 | Cluster RBAC | Dedicated `open-webui-cluster-reader` ServiceAccount + ClusterRole, read-only (`get`/`list`/`watch` on pods/pods-log/events/nodes/namespaces/services/deployments/replicasets/statefulsets/daemonsets; no `secrets`, no write/exec/port-forward) — `rbac.yaml`. Backs a Kubernetes read-only "Tool" (`tools/k8s-readonly.py`) for log/status inspection from chat. Requires the `qwen2.5:3b` model, not `qwen2.5-coder:3b` — the coder variant doesn't reliably emit Ollama's structured `tool_calls` format despite `ollama show` listing "tools" as a capability. |
 
-### Discord Music Bot (in progress)
+### Discord Music Bot
 
 | | |
 |---|---|
 | Namespace | `music-bot` |
-| Status | Phase B (Lavalink) deployed; bot application (Phase C/D) not yet built |
+| Status | Phases A-D complete (Lavalink + bot deployed) |
 | Discord server | Testing server (guild ID TBD to swap to production server before launch) |
 | Lavalink | `ghcr.io/lavalink-devs/lavalink:4`, ClusterIP Service `lavalink.music-bot.svc.cluster.local:2333`, no IngressRoute — never leaves the cluster network |
-| Lavalink plugins | LavaSrc `4.8.3` (Spotify metadata resolution, client-credentials flow), youtube-plugin `1.18.2` (actual audio; replaces Lavalink's deprecated built-in YouTube source) |
+| Lavalink plugins | LavaSrc `4.8.3` (single-track Spotify link resolution, client-credentials flow), youtube-plugin `1.18.2` (actual audio; replaces Lavalink's deprecated built-in YouTube source) |
 | Audio source | YouTube only — Deezer explicitly out of scope (LavaSrc's Deezer support needs a non-distributed DRM master key) |
-| Secrets | `music-bot/music-bot-secret` (SOPS: `music-bot-config/music-bot-secret.sops.yaml`) — `lavalink-password`, `spotify-client-id`, `spotify-client-secret`, `discord-bot-token`, `discord-guild-id` |
+| Bot app | `apps/music-bot/` — discord.py + Wavelink, image `ghcr.io/ryyyyan-taylor/homelab-music-bot`, built/pushed by `.github/workflows/music-bot.yaml`, auto-deployed via ArgoCD Image Updater |
+| Playlist/album resolution | Bot-side `SpotifyClient` (Authorization Code OAuth, own token — not LavaSrc) fetches the track list fast, then lazily resolves each track to YouTube audio (`ytsearch:`) as it enters a 5-track lookahead window. Needed because Spotify now blocks playlist/album reads for client-credentials (app-only) tokens — LavaSrc's only workaround does a slow extra HTTP call per track. Single-track links still go straight through LavaSrc as before. |
+| Secrets | `music-bot/music-bot-secret` (SOPS: `music-bot-config/music-bot-secret.sops.yaml`) — `lavalink-password`, `spotify-client-id`, `spotify-client-secret`, `spotify-refresh-token`, `discord-bot-token`, `discord-guild-id` |
+| Spotify app | Reuses the user's existing pre-2024 Spotify app (also used by `~/Code/spotipy`), not a newly-registered one — new apps get a stricter Development Mode that 403s on `GET /playlists/{id}/tracks` even with a valid user token; this older app is grandfathered with full access. Used for both Lavalink's client-credentials config and the bot's OAuth. |
+| Spotify OAuth setup | One-time interactive login via `scripts/spotify-oauth-setup.py` (run locally, not in-cluster) — mints a refresh token with scopes `playlist-read-private playlist-read-collaborative`; needs redirect URI `http://127.0.0.1:8888/callback` registered on the Spotify app |
 | Resources (Lavalink) | req `cpu 200m / mem 384Mi`, lim `cpu 1 / mem 768Mi` — provisional, revise after observing steady-state (JVM app) |
+| Resources (bot) | req `cpu 50m / mem 96Mi`, lim `cpu 250m / mem 256Mi` — provisional |
 | Known gotcha | If playback fails with "Sign in to confirm you're not a bot", enable `oauth.enabled: true` under `plugins.youtube` in the ConfigMap — the plugin logs a device-code URL to pod logs to link an account |
-| Next steps | Phase C: bot app (discord.py + Wavelink) → Phase D: bot Deployment in same namespace, wired to `ghcr-credentials` for Image Updater |
+| Known gotcha | Lavalink 4.2.x's `/version` endpoint requires the `Authorization` header — liveness/readiness probes use `tcpSocket`, not `httpGet`, since probe headers can't source a secret |
 
 ### Semaphore
 

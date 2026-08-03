@@ -34,6 +34,21 @@ spec:
                 secretKeyRef:
                   name: music-bot-secret
                   key: discord-guild-id
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: spotify-client-id
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: spotify-client-secret
+            - name: SPOTIFY_REFRESH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: spotify-refresh-token
           resources:
             requests:
               cpu: 50m

@@ -1,6 +1,12 @@
+import base64
 import logging
 import os
+import re
+import time
+from collections import deque
+from dataclasses import dataclass
 
+import aiohttp
 import discord
 import wavelink
 from discord import app_commands
@@ -10,8 +16,95 @@ DISCORD_GUILD_ID = int(os.environ["DISCORD_GUILD_ID"])
 LAVALINK_URI = os.environ.get("LAVALINK_URI", "http://lavalink.music-bot.svc.cluster.local:2333")
 LAVALINK_PASSWORD = os.environ["LAVALINK_PASSWORD"]
 IDLE_TIMEOUT_SECONDS = int(os.environ.get("IDLE_TIMEOUT_SECONDS", "300"))
+SPOTIFY_CLIENT_ID = os.environ["SPOTIFY_CLIENT_ID"]
+SPOTIFY_CLIENT_SECRET = os.environ["SPOTIFY_CLIENT_SECRET"]
+SPOTIFY_REFRESH_TOKEN = os.environ["SPOTIFY_REFRESH_TOKEN"]
 
 GUILD = discord.Object(id=DISCORD_GUILD_ID)
+SPOTIFY_URL_RE = re.compile(r"open\.spotify\.com/(track|album|playlist)/([A-Za-z0-9]+)")
+
+# How many resolved (playable) tracks to keep queued ahead of the current one.
+# The rest of a playlist/album sits in `player.pending` as cheap metadata and
+# only gets resolved to a YouTube track as it enters this window.
+LOOKAHEAD = 5
+
+
+@dataclass
+class TrackMeta:
+    title: str
+    artist: str
+
+
+class SpotifyClient:
+    """Direct Spotify Web API access (Authorization Code flow).
+
+    LavaSrc's Spotify integration only has a client-credentials app token,
+    which Spotify no longer allows to read playlist/album track listings.
+    A user-authorized token (this class) still can, and — unlike LavaSrc's
+    unofficial partner-API workaround — doesn't need a slow per-track ISRC
+    lookup to do it.
+    """
+
+    def __init__(self, session: aiohttp.ClientSession) -> None:
+        self._session = session
+        self._refresh_token = SPOTIFY_REFRESH_TOKEN
+        self._access_token: str | None = None
+        self._expires_at: float = 0.0
+
+    async def _get_access_token(self) -> str:
+        if self._access_token is None or time.monotonic() >= self._expires_at:
+            auth = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
+            async with self._session.post(
+                "https://accounts.spotify.com/api/token",
+                data={"grant_type": "refresh_token", "refresh_token": self._refresh_token},
+                headers={"Authorization": f"Basic {auth}"},
+            ) as resp:
+                resp.raise_for_status()
+                payload = await resp.json()
+            self._access_token = payload["access_token"]
+            self._expires_at = time.monotonic() + payload.get("expires_in", 3600) - 60
+            if payload.get("refresh_token"):
+                self._refresh_token = payload["refresh_token"]
+        return self._access_token
+
+    async def get_tracks(self, kind: str, spotify_id: str) -> tuple[str | None, list[TrackMeta]]:
+        headers = {"Authorization": f"Bearer {await self._get_access_token()}"}
+
+        if kind == "playlist":
+            meta_url = f"https://api.spotify.com/v1/playlists/{spotify_id}"
+            url: str | None = f"https://api.spotify.com/v1/playlists/{spotify_id}/tracks"
+            params: dict[str, object] | None = {
+                "fields": "items(track(name,artists(name))),next",
+                "limit": 100,
+            }
+            item_key, track_key = "items", "track"
+        else:
+            meta_url = f"https://api.spotify.com/v1/albums/{spotify_id}"
+            url = f"https://api.spotify.com/v1/albums/{spotify_id}/tracks"
+            params = {"limit": 50}
+            item_key, track_key = "items", None
+
+        name = None
+        async with self._session.get(meta_url, headers=headers, params={"fields": "name"}) as resp:
+            if resp.status == 200:
+                name = (await resp.json()).get("name")
+
+        tracks: list[TrackMeta] = []
+        while url:
+            async with self._session.get(url, headers=headers, params=params) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+            params = None  # `next` is a full URL with params already applied
+            for item in data.get(item_key, []):
+                track = item.get(track_key) if track_key else item
+                if not track:
+                    continue
+                artists = track.get("artists") or []
+                artist = artists[0]["name"] if artists else "Unknown"
+                tracks.append(TrackMeta(title=track["name"], artist=artist))
+            url = data.get("next")
+
+        return name, tracks
 
 
 class MusicBot(discord.Client):
@@ -20,16 +113,27 @@ class MusicBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self) -> None:
+        self.http_session = aiohttp.ClientSession()
+        self.spotify = SpotifyClient(self.http_session)
+
         node = wavelink.Node(uri=LAVALINK_URI, password=LAVALINK_PASSWORD)
         await wavelink.Pool.connect(nodes=[node], client=self)
         self.tree.copy_global_to(guild=GUILD)
         await self.tree.sync(guild=GUILD)
+
+    async def close(self) -> None:
+        await self.http_session.close()
+        await super().close()
 
     async def on_ready(self) -> None:
         logging.info("Logged in as %s (%s)", self.user, self.user.id)
 
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
         logging.info("Lavalink node connected: %r (resumed=%s)", payload.node, payload.resumed)
+
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        if payload.player is not None:
+            await _fill_lookahead(payload.player)
 
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
         home = getattr(player, "home", None)
@@ -52,8 +156,32 @@ async def _get_player(interaction: discord.Interaction, *, connect: bool = False
         player = await voice_state.channel.connect(cls=wavelink.Player)
         player.inactive_timeout = IDLE_TIMEOUT_SECONDS
         player.home = interaction.channel
+        player.pending = deque()
+        # partial: advance through player.queue automatically, but never
+        # append unsolicited "recommended" tracks when it empties (D4).
+        player.autoplay = wavelink.AutoPlayMode.partial
 
     return player  # type: ignore[return-value]
+
+
+async def _resolve_one(meta: TrackMeta) -> wavelink.Playable | None:
+    try:
+        results: wavelink.Search = await wavelink.Playable.search(f"ytsearch:{meta.title} {meta.artist}")
+    except wavelink.LavalinkLoadException:
+        return None
+    if not results or isinstance(results, wavelink.Playlist):
+        return None
+    return results[0]
+
+
+async def _fill_lookahead(player: wavelink.Player) -> None:
+    pending: deque[TrackMeta] | None = getattr(player, "pending", None)
+    if not pending:
+        return
+    while pending and len(player.queue) < LOOKAHEAD:
+        track = await _resolve_one(pending.popleft())
+        if track is not None:
+            await player.queue.put_wait(track)
 
 
 @bot.tree.command(description="Play a Spotify track, album, or playlist link")
@@ -65,7 +193,35 @@ async def play(interaction: discord.Interaction, url: str) -> None:
     if player is None:
         return
 
-    tracks: wavelink.Search = await wavelink.Playable.search(url)
+    match = SPOTIFY_URL_RE.search(url)
+    kind = match.group(1) if match else None
+
+    if kind in ("playlist", "album"):
+        spotify_id = match.group(2)
+        try:
+            name, tracks_meta = await bot.spotify.get_tracks(kind, spotify_id)
+        except aiohttp.ClientError:
+            await interaction.followup.send("Couldn't load that from Spotify. Try again in a moment.")
+            return
+
+        if not tracks_meta:
+            await interaction.followup.send("That playlist/album looks empty (or isn't accessible).")
+            return
+
+        player.pending.extend(tracks_meta)
+        await interaction.followup.send(f"Queued **{name or kind.capitalize()}** ({len(tracks_meta)} tracks).")
+
+        await _fill_lookahead(player)
+        if not player.playing and player.queue:
+            await player.play(player.queue.get())
+        return
+
+    try:
+        tracks: wavelink.Search = await wavelink.Playable.search(url)
+    except wavelink.LavalinkLoadException:
+        await interaction.followup.send("Couldn't load that link.")
+        return
+
     if not tracks:
         await interaction.followup.send("Couldn't find anything for that link.")
         return
@@ -128,7 +284,8 @@ async def queue(interaction: discord.Interaction) -> None:
         lines.append("")
         lines.extend(f"{i + 1}. {t.title} — `{t.author}`" for i, t in enumerate(upcoming))
 
-    remaining = len(player.queue) - len(upcoming)
+    pending = getattr(player, "pending", None)
+    remaining = len(player.queue) - len(upcoming) + (len(pending) if pending else 0)
     if remaining > 0:
         lines.append(f"...and {remaining} more.")
 
