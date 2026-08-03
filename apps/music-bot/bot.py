@@ -158,7 +158,10 @@ async def _get_player(interaction: discord.Interaction, *, connect: bool = False
     if player is None and connect:
         voice_state = interaction.user.voice  # type: ignore[union-attr]
         if voice_state is None or voice_state.channel is None:
-            await interaction.response.send_message("Join a voice channel first.", ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send("Join a voice channel first.", ephemeral=True)
+            else:
+                await interaction.response.send_message("Join a voice channel first.", ephemeral=True)
             return None
         player = await voice_state.channel.connect(cls=wavelink.Player, self_deaf=True)
         player.inactive_timeout = IDLE_TIMEOUT_SECONDS
