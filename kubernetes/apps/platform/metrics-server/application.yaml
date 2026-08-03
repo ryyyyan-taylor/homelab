@@ -26,6 +26,26 @@ spec:
           limits:
             cpu: 100m
             memory: 64Mi
+        # Chart's default timeoutSeconds (1s) is too tight for this cluster's
+        # I/O jitter — probes were timing out on transient latency spikes,
+        # not actual resource pressure, causing thousands of restarts.
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+          failureThreshold: 3
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: https
+            scheme: HTTPS
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          failureThreshold: 3
+          timeoutSeconds: 10
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
