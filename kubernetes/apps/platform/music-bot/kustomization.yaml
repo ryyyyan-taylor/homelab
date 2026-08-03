@@ -5,3 +5,4 @@ resources:
   - lavalink-configmap.yaml
   - lavalink-deployment.yaml
   - lavalink-service.yaml
+  - bot-deployment.yaml

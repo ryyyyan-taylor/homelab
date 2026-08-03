@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: music-bot
+  namespace: music-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: music-bot
+  template:
+    metadata:
+      labels:
+        app: music-bot
+    spec:
+      containers:
+        - name: music-bot
+          image: ghcr.io/ryyyyan-taylor/homelab-music-bot:latest
+          env:
+            - name: LAVALINK_URI
+              value: http://lavalink.music-bot.svc.cluster.local:2333
+            - name: LAVALINK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: lavalink-password
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: discord-bot-token
+            - name: DISCORD_GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: discord-guild-id
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
