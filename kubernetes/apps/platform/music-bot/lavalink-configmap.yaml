@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lavalink-config
+  namespace: music-bot
+data:
+  application.yml: |
+    server:
+      port: 2333
+      address: 0.0.0.0
+
+    lavalink:
+      plugins:
+        - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
+          repository: "https://maven.lavalink.dev/releases"
+          snapshot: false
+        - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
+          repository: "https://maven.lavalink.dev/releases"
+          snapshot: false
+      server:
+        password: "${LAVALINK_SERVER_PASSWORD}"
+        sources:
+          # Built-in youtube source is deprecated/unreliable — youtube-plugin
+          # above replaces it.
+          youtube: false
+          bandcamp: false
+          soundcloud: false
+          twitch: false
+          vimeo: false
+          nico: false
+          http: false
+          local: false
+
+    plugins:
+      lavasrc:
+        providers:
+          - "ytsearch:\"%ISRC%\""
+          - "ytsearch:%QUERY%"
+        sources:
+          spotify: true
+          applemusic: false
+          deezer: false
+          yandexmusic: false
+          flowerytts: false
+          youtube: false
+          vkmusic: false
+          tidal: false
+          qobuz: false
+          ytdlp: false
+          jiosaavn: false
+        spotify:
+          clientId: "${SPOTIFY_CLIENT_ID}"
+          clientSecret: "${SPOTIFY_CLIENT_SECRET}"
+          countryCode: "US"
+          playlistLoadLimit: 6
+          albumLoadLimit: 6
+      youtube:
+        enabled: true
+        allowSearch: true
+        allowDirectVideoIds: true
+        allowDirectPlaylistIds: true
+        clients:
+          - MUSIC
+          - ANDROID_VR
+          - WEB
+          - WEBEMBEDDED
+        # If playback fails with a "Sign in to confirm you're not a bot" error
+        # during Phase B/E testing, set oauth.enabled: true — the plugin logs
+        # a device-code URL to pod logs on first startup to link an account.
+
+    metrics:
+      prometheus:
+        enabled: false
+
+    logging:
+      level:
+        root: INFO
+        lavalink: INFO

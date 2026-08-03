@@ -148,6 +148,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 19 | dash | `dash` | Custom homelab dashboard (Go + Svelte) at `dash.lab.ryantaylor.tech` |
 | 21 | semaphore-config | `semaphore` | SOPS secrets + IngressRoute for Semaphore |
 | 22 | semaphore | `semaphore` | Semaphore UI task runner (Helm) |
+| 24 | music-bot-config | `music-bot` | SOPS secrets (Lavalink password, Spotify creds, Discord bot token/guild ID) |
+| 25 | music-bot | `music-bot` | Lavalink (LavaSrc + YouTube plugin); bot Deployment added in Phase D |
 
 ### cert-manager
 
@@ -390,6 +392,21 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Resources | req `cpu 200m / mem 1Gi`, lim `cpu 2 / mem 2Gi` — revised up from an initial `100m/512Mi`/`1/1Gi` guess after an OOMKill loading the default embedding model (`sentence-transformers`/PyTorch) on first boot |
 | Secrets | `WEBUI_SECRET_KEY` via KSOPS (`kubernetes/apps/platform/open-webui/webui-secrets.sops.yaml`) |
 | Cluster RBAC | Dedicated `open-webui-cluster-reader` ServiceAccount + ClusterRole, read-only (`get`/`list`/`watch` on pods/pods-log/events/nodes/namespaces/services/deployments/replicasets/statefulsets/daemonsets; no `secrets`, no write/exec/port-forward) — `rbac.yaml`. Backs a Kubernetes read-only "Tool" (`tools/k8s-readonly.py`) for log/status inspection from chat. Requires the `qwen2.5:3b` model, not `qwen2.5-coder:3b` — the coder variant doesn't reliably emit Ollama's structured `tool_calls` format despite `ollama show` listing "tools" as a capability. |
+
+### Discord Music Bot (in progress)
+
+| | |
+|---|---|
+| Namespace | `music-bot` |
+| Status | Phase B (Lavalink) deployed; bot application (Phase C/D) not yet built |
+| Discord server | Testing server (guild ID TBD to swap to production server before launch) |
+| Lavalink | `ghcr.io/lavalink-devs/lavalink:4`, ClusterIP Service `lavalink.music-bot.svc.cluster.local:2333`, no IngressRoute — never leaves the cluster network |
+| Lavalink plugins | LavaSrc `4.8.3` (Spotify metadata resolution, client-credentials flow), youtube-plugin `1.18.2` (actual audio; replaces Lavalink's deprecated built-in YouTube source) |
+| Audio source | YouTube only — Deezer explicitly out of scope (LavaSrc's Deezer support needs a non-distributed DRM master key) |
+| Secrets | `music-bot/music-bot-secret` (SOPS: `music-bot-config/music-bot-secret.sops.yaml`) — `lavalink-password`, `spotify-client-id`, `spotify-client-secret`, `discord-bot-token`, `discord-guild-id` |
+| Resources (Lavalink) | req `cpu 200m / mem 384Mi`, lim `cpu 1 / mem 768Mi` — provisional, revise after observing steady-state (JVM app) |
+| Known gotcha | If playback fails with "Sign in to confirm you're not a bot", enable `oauth.enabled: true` under `plugins.youtube` in the ConfigMap — the plugin logs a device-code URL to pod logs to link an account |
+| Next steps | Phase C: bot app (discord.py + Wavelink) → Phase D: bot Deployment in same namespace, wired to `ghcr-credentials` for Image Updater |
 
 ### Semaphore
 

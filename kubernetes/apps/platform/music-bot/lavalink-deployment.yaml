@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lavalink
+  namespace: music-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lavalink
+  template:
+    metadata:
+      labels:
+        app: lavalink
+    spec:
+      containers:
+        - name: lavalink
+          image: ghcr.io/lavalink-devs/lavalink:4
+          ports:
+            - containerPort: 2333
+          env:
+            - name: LAVALINK_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: lavalink-password
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: spotify-client-id
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: spotify-client-secret
+          volumeMounts:
+            - name: config
+              mountPath: /opt/Lavalink/application.yml
+              subPath: application.yml
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: 2333
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /version
+              port: 2333
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: config
+          configMap:
+            name: lavalink-config

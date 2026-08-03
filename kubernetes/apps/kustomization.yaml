@@ -30,3 +30,5 @@ resources:
   - platform/semaphore-config/application.yaml
   - platform/semaphore/application.yaml
   - platform/open-webui/application.yaml
+  - platform/music-bot-config/application.yaml
+  - platform/music-bot/application.yaml
