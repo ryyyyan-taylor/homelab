@@ -147,6 +147,7 @@ class MusicBot(discord.Client):
         if home is not None:
             await home.send(f"Leaving — inactive for {IDLE_TIMEOUT_SECONDS}s.")
         await _clear_now_playing(player, "Disconnected (inactive).")
+        await _clear_controls(player, "Disconnected (inactive).")
         await player.disconnect()
 
 
@@ -172,8 +173,57 @@ async def _get_player(interaction: discord.Interaction, *, connect: bool = False
         # partial: advance through player.queue automatically, but never
         # append unsolicited "recommended" tracks when it empties (D4).
         player.autoplay = wavelink.AutoPlayMode.partial
+        player.controls_message = await interaction.channel.send(  # type: ignore[union-attr]
+            "🎛️ **Music Controls**", view=ControlsView(player)
+        )
 
     return player  # type: ignore[return-value]
+
+
+def _queue_text(player: wavelink.Player) -> str:
+    lines: list[str] = []
+    if player.current:
+        lines.append(f"**Now playing:** {player.current.title} by `{player.current.author}`")
+
+    upcoming = list(player.queue)[:10]
+    if upcoming:
+        lines.append("")
+        lines.extend(f"{i + 1}. {t.title} — `{t.author}`" for i, t in enumerate(upcoming))
+
+    pending = getattr(player, "pending", None)
+    remaining = len(player.queue) - len(upcoming) + (len(pending) if pending else 0)
+    if remaining > 0:
+        lines.append(f"...and {remaining} more.")
+
+    return "\n".join(lines) if lines else "Queue is empty."
+
+
+async def _clear_controls(player: wavelink.Player, text: str) -> None:
+    message: discord.Message | None = getattr(player, "controls_message", None)
+    if message is None:
+        return
+    try:
+        await message.edit(content=text, view=None)
+    except discord.HTTPException:
+        pass
+    player.controls_message = None
+
+
+class ControlsView(discord.ui.View):
+    def __init__(self, player: wavelink.Player) -> None:
+        super().__init__(timeout=None)
+        self.player = player
+
+    @discord.ui.button(emoji="📜", label="Queue", style=discord.ButtonStyle.secondary)
+    async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_message(_queue_text(self.player), ephemeral=True)
+
+    @discord.ui.button(emoji="🚪", label="Leave", style=discord.ButtonStyle.danger)
+    async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _clear_now_playing(self.player, "Disconnected.")
+        await _clear_controls(self.player, "Disconnected.")
+        await self.player.disconnect()
+        await interaction.response.send_message("Disconnected.", ephemeral=True)
 
 
 def _play_pause_label(player: wavelink.Player) -> tuple[str, str]:
@@ -412,21 +462,7 @@ async def queue(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Not connected to a voice channel.", ephemeral=True)
         return
 
-    lines: list[str] = []
-    if player.current:
-        lines.append(f"**Now playing:** {player.current.title} by `{player.current.author}`")
-
-    upcoming = list(player.queue)[:10]
-    if upcoming:
-        lines.append("")
-        lines.extend(f"{i + 1}. {t.title} — `{t.author}`" for i, t in enumerate(upcoming))
-
-    pending = getattr(player, "pending", None)
-    remaining = len(player.queue) - len(upcoming) + (len(pending) if pending else 0)
-    if remaining > 0:
-        lines.append(f"...and {remaining} more.")
-
-    await interaction.response.send_message("\n".join(lines) if lines else "Queue is empty.")
+    await interaction.response.send_message(_queue_text(player))
 
 
 @bot.tree.command(description="Disconnect the bot from voice")
@@ -436,6 +472,7 @@ async def leave(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Not connected to a voice channel.", ephemeral=True)
         return
     await _clear_now_playing(player, "Disconnected.")
+    await _clear_controls(player, "Disconnected.")
     await player.disconnect()
     await interaction.response.send_message("Disconnected.")
 
