@@ -363,7 +363,7 @@ async def _shuffle_all(player: wavelink.Player) -> None:
 @bot.tree.command(description="Play a Spotify track, album, or playlist link. Defaults to Way Way Back")
 @app_commands.describe(url="Spotify track, album, or playlist URL. Defaults to Way Way Back")
 async def play(interaction: discord.Interaction, url: str | None = None) -> None:
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     url = url or DEFAULT_PLAYLIST_URL
 
     player = await _get_player(interaction, connect=True)
@@ -378,15 +378,17 @@ async def play(interaction: discord.Interaction, url: str | None = None) -> None
         try:
             name, tracks_meta = await bot.spotify.get_tracks(kind, spotify_id)
         except aiohttp.ClientError:
-            await interaction.followup.send("Couldn't load that from Spotify. Try again in a moment.")
+            await interaction.followup.send("Couldn't load that from Spotify. Try again in a moment.", ephemeral=True)
             return
 
         if not tracks_meta:
-            await interaction.followup.send("That playlist/album looks empty (or isn't accessible).")
+            await interaction.followup.send("That playlist/album looks empty (or isn't accessible).", ephemeral=True)
             return
 
         player.pending.extend(tracks_meta)
-        await interaction.followup.send(f"Queued **{name or kind.capitalize()}** ({len(tracks_meta)} tracks).")
+        await interaction.followup.send(
+            f"Queued **{name or kind.capitalize()}** ({len(tracks_meta)} tracks).", ephemeral=True
+        )
 
         await _fill_lookahead(player)
         if not player.playing and player.queue:
@@ -396,20 +398,20 @@ async def play(interaction: discord.Interaction, url: str | None = None) -> None
     try:
         tracks: wavelink.Search = await wavelink.Playable.search(url)
     except wavelink.LavalinkLoadException:
-        await interaction.followup.send("Couldn't load that link.")
+        await interaction.followup.send("Couldn't load that link.", ephemeral=True)
         return
 
     if not tracks:
-        await interaction.followup.send("Couldn't find anything for that link.")
+        await interaction.followup.send("Couldn't find anything for that link.", ephemeral=True)
         return
 
     if isinstance(tracks, wavelink.Playlist):
         added = await player.queue.put_wait(tracks)
-        await interaction.followup.send(f"Queued **{tracks.name}** ({added} tracks).")
+        await interaction.followup.send(f"Queued **{tracks.name}** ({added} tracks).", ephemeral=True)
     else:
         track = tracks[0]
         await player.queue.put_wait(track)
-        await interaction.followup.send(f"Queued **{track.title}** by `{track.author}`.")
+        await interaction.followup.send(f"Queued **{track.title}** by `{track.author}`.", ephemeral=True)
 
     if not player.playing:
         await player.play(player.queue.get())
@@ -422,7 +424,7 @@ async def skip(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
     await player.skip(force=True)
-    await interaction.response.send_message("Skipped.")
+    await interaction.response.send_message("Skipped.", ephemeral=True)
 
 
 @bot.tree.command(description="Pause playback")
@@ -432,7 +434,7 @@ async def pause(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Already paused, or nothing is playing.", ephemeral=True)
         return
     await player.pause(True)
-    await interaction.response.send_message("Paused.")
+    await interaction.response.send_message("Paused.", ephemeral=True)
     await _update_now_playing(player)
 
 
@@ -443,7 +445,7 @@ async def resume(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Not paused.", ephemeral=True)
         return
     await player.pause(False)
-    await interaction.response.send_message("Resumed.")
+    await interaction.response.send_message("Resumed.", ephemeral=True)
     await _update_now_playing(player)
 
 
@@ -454,7 +456,7 @@ async def shuffle(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Queue is empty.", ephemeral=True)
         return
     await _shuffle_all(player)
-    await interaction.response.send_message("Shuffled.")
+    await interaction.response.send_message("Shuffled.", ephemeral=True)
 
 
 @bot.tree.command(description="Show the current queue")
@@ -464,7 +466,7 @@ async def queue(interaction: discord.Interaction) -> None:
         await interaction.response.send_message("Not connected to a voice channel.", ephemeral=True)
         return
 
-    await interaction.response.send_message(_queue_text(player))
+    await interaction.response.send_message(_queue_text(player), ephemeral=True)
 
 
 @bot.tree.command(description="Disconnect the bot from voice")
@@ -476,7 +478,7 @@ async def leave(interaction: discord.Interaction) -> None:
     await _clear_now_playing(player, "Disconnected.")
     await _clear_controls(player, "Disconnected.")
     await player.disconnect()
-    await interaction.response.send_message("Disconnected.")
+    await interaction.response.send_message("Disconnected.", ephemeral=True)
 
 
 def main() -> None:
