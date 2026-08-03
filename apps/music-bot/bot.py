@@ -23,6 +23,7 @@ SPOTIFY_REFRESH_TOKEN = os.environ["SPOTIFY_REFRESH_TOKEN"]
 
 GUILD = discord.Object(id=DISCORD_GUILD_ID)
 SPOTIFY_URL_RE = re.compile(r"open\.spotify\.com/(track|album|playlist)/([A-Za-z0-9]+)")
+DEFAULT_PLAYLIST_URL = "https://open.spotify.com/playlist/1WvjVLzdLWlte4L1zVrrtE?si=0bd01556bbc44bd2"
 
 # How many resolved (playable) tracks to keep queued ahead of the current one.
 # The rest of a playlist/album sits in `player.pending` as cheap metadata and
@@ -359,10 +360,11 @@ async def _shuffle_all(player: wavelink.Player) -> None:
     await _fill_lookahead(player)
 
 
-@bot.tree.command(description="Play a Spotify track, album, or playlist link")
-@app_commands.describe(url="Spotify track, album, or playlist URL")
-async def play(interaction: discord.Interaction, url: str) -> None:
+@bot.tree.command(description="Play a Spotify track, album, or playlist link. Defaults to Way Way Back")
+@app_commands.describe(url="Spotify track, album, or playlist URL. Defaults to Way Way Back")
+async def play(interaction: discord.Interaction, url: str | None = None) -> None:
     await interaction.response.defer()
+    url = url or DEFAULT_PLAYLIST_URL
 
     player = await _get_player(interaction, connect=True)
     if player is None:
