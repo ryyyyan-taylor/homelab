@@ -147,8 +147,8 @@ class MusicBot(discord.Client):
         home = getattr(player, "home", None)
         if home is not None:
             await home.send(f"Leaving — inactive for {IDLE_TIMEOUT_SECONDS}s.")
-        await _clear_now_playing(player, "Disconnected (inactive).")
-        await _clear_controls(player, "Disconnected (inactive).")
+        await _clear_now_playing(player)
+        await _clear_controls(player)
         await player.disconnect()
 
 
@@ -199,12 +199,15 @@ def _queue_text(player: wavelink.Player) -> str:
     return "\n".join(lines) if lines else "Queue is empty."
 
 
-async def _clear_controls(player: wavelink.Player, text: str) -> None:
+async def _clear_controls(player: wavelink.Player, text: str | None = None) -> None:
     message: discord.Message | None = getattr(player, "controls_message", None)
     if message is None:
         return
     try:
-        await message.edit(content=text, view=None)
+        if text is None:
+            await message.delete()
+        else:
+            await message.edit(content=text, view=None)
     except discord.HTTPException:
         pass
     player.controls_message = None
@@ -221,10 +224,10 @@ class ControlsView(discord.ui.View):
 
     @discord.ui.button(emoji="🚪", label="Leave", style=discord.ButtonStyle.danger)
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _clear_now_playing(self.player, "Disconnected.")
-        await _clear_controls(self.player, "Disconnected.")
-        await self.player.disconnect()
         await interaction.response.send_message("Disconnected.", ephemeral=True)
+        await _clear_now_playing(self.player)
+        await _clear_controls(self.player)
+        await self.player.disconnect()
 
 
 def _play_pause_label(player: wavelink.Player) -> tuple[str, str]:
@@ -304,12 +307,15 @@ async def _update_now_playing(player: wavelink.Player, *, interaction: discord.I
         player.now_playing_message = await home.send(embed=embed, view=view)
 
 
-async def _clear_now_playing(player: wavelink.Player, text: str) -> None:
+async def _clear_now_playing(player: wavelink.Player, text: str | None = None) -> None:
     message: discord.Message | None = getattr(player, "now_playing_message", None)
     if message is None:
         return
     try:
-        await message.edit(content=text, embed=None, view=None)
+        if text is None:
+            await message.delete()
+        else:
+            await message.edit(content=text, embed=None, view=None)
     except discord.HTTPException:
         pass
     player.now_playing_message = None
@@ -475,10 +481,10 @@ async def leave(interaction: discord.Interaction) -> None:
     if player is None:
         await interaction.response.send_message("Not connected to a voice channel.", ephemeral=True)
         return
-    await _clear_now_playing(player, "Disconnected.")
-    await _clear_controls(player, "Disconnected.")
-    await player.disconnect()
     await interaction.response.send_message("Disconnected.", ephemeral=True)
+    await _clear_now_playing(player)
+    await _clear_controls(player)
+    await player.disconnect()
 
 
 def main() -> None:
