@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import random
 import re
 import time
 from collections import deque
@@ -209,7 +210,7 @@ class NowPlayingView(discord.ui.View):
 
     @discord.ui.button(emoji="🔀", label="Shuffle", style=discord.ButtonStyle.secondary, row=0)
     async def shuffle_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        self.player.queue.shuffle()
+        await _shuffle_all(self.player)
         await interaction.response.send_message("Shuffled.", ephemeral=True)
 
 
@@ -292,6 +293,20 @@ async def _fill_lookahead(player: wavelink.Player) -> None:
         track = await _resolve_one(pending.popleft())
         if track is not None:
             await player.queue.put_wait(track)
+
+
+async def _shuffle_all(player: wavelink.Player) -> None:
+    """Shuffle across the whole remaining tracklist, not just the resolved lookahead window."""
+    pending: deque[TrackMeta] = getattr(player, "pending", None) or deque()
+    combined = [TrackMeta(title=t.title, artist=t.author) for t in player.queue] + list(pending)
+    random.shuffle(combined)
+
+    player.queue.clear()
+    pending.clear()
+    pending.extend(combined)
+    player.pending = pending
+
+    await _fill_lookahead(player)
 
 
 @bot.tree.command(description="Play a Spotify track, album, or playlist link")
@@ -383,10 +398,10 @@ async def resume(interaction: discord.Interaction) -> None:
 @bot.tree.command(description="Shuffle the current queue")
 async def shuffle(interaction: discord.Interaction) -> None:
     player = await _get_player(interaction)
-    if player is None or not player.queue:
+    if player is None or (not player.queue and not getattr(player, "pending", None)):
         await interaction.response.send_message("Queue is empty.", ephemeral=True)
         return
-    player.queue.shuffle()
+    await _shuffle_all(player)
     await interaction.response.send_message("Shuffled.")
 
 
