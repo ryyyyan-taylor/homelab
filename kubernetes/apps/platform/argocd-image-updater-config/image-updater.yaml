@@ -1,0 +1,11 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: annotation-based
+  namespace: argocd
+spec:
+  applicationRefs:
+    - namePattern: music-bot
+      useAnnotations: true
+    - namePattern: dash
+      useAnnotations: true

@@ -144,6 +144,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 16 | uptime-kuma | `uptime-kuma` | Synthetic uptime checks for all services |
 | 17 | homepage | `homepage` | Dashboard landing page at `lab.ryantaylor.tech` |
 | 1 | argocd-image-updater | `argocd` | Watches image registries and auto-updates app image tags |
+| 2 | argocd-image-updater-config | `argocd` | `ImageUpdater` CR wiring `music-bot`/`dash` annotations into the wave-1 controller |
 | 18 | dash-config | `dash` | SOPS secrets (Proxmox + Semaphore API tokens) for homelab-dash |
 | 19 | dash | `dash` | Custom homelab dashboard (Go + Svelte) at `dash.lab.ryantaylor.tech` |
 | 21 | semaphore-config | `semaphore` | SOPS secrets + IngressRoute for Semaphore |
@@ -364,10 +365,11 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Version | 1.1.5 (chart), v1.1.1 (app) |
 | Namespace | `argocd` |
 | Helm repo | `https://argoproj.github.io/argo-helm` |
-| Purpose | Watches ghcr.io for new image tags and commits updated tag back to repo (or updates live ArgoCD apps) |
+| Purpose | Watches ghcr.io for new image tags and writes the new tag back to git (ArgoCD then syncs the commit as usual) |
 | Registry | `ghcr.io` — credentials from `argocd/ghcr-credentials` Secret (not in repo — create manually after rebuild) |
-| Credentials secret | `kubectl -n argocd create secret generic ghcr-credentials --from-literal=username=ryyyyan-taylor --from-literal=password=<github-pat>` — PAT needs `read:packages` scope |
-| Notes | No `ImageUpdater` CRs configured yet — secret is pre-provisioned for when auto-update annotations are added to apps |
+| Credentials secret | `kubectl -n argocd create secret generic ghcr-credentials --from-literal=username=ryyyyan-taylor --from-literal=password=<github-pat>` — same PAT doubles as git write-back credentials (needs `repo` scope, not just `read:packages`) |
+| Config | `platform/argocd-image-updater-config` app deploys an `ImageUpdater` CR (`annotation-based`) with `applicationRefs: [{namePattern: music-bot, useAnnotations: true}, {namePattern: dash, useAnnotations: true}]` — v1.1.x is a controller-runtime rewrite that only reconciles apps referenced by an `ImageUpdater` CR; the legacy `argocd-image-updater.argoproj.io/*` Application annotations are inert without one |
+| Notes | Per-app annotations set `write-back-method: git:secret:argocd/ghcr-credentials` (not bare `git`, which defaults to ArgoCD's own repo creds — this repo has none, since it's added as a public/anonymous read-only source) |
 
 ### whoami (SSO smoke test)
 
@@ -515,7 +517,7 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | Cloudflare API token | `cert-manager-config/cloudflare-token.sops.yaml` | DNS-01 challenge for cert-manager |
 | Talos secrets | `kubernetes/talos/secrets.sops.yaml` | Cluster bootstrap secrets |
 | Authentik secrets | `authentik-config/authentik-secrets.sops.yaml` | secret-key + postgres passwords |
-| ghcr-credentials | `argocd/ghcr-credentials` Secret (not in repo — create manually) | GitHub PAT (`read:packages`) for ArgoCD Image Updater to pull from ghcr.io |
+| ghcr-credentials | `argocd/ghcr-credentials` Secret (not in repo — create manually) | GitHub PAT (`repo` + `read:packages` scope) — pulls from ghcr.io and doubles as ArgoCD Image Updater's git write-back credentials |
 | Semaphore secrets | `semaphore-config/semaphore-secrets.sops.yaml` | Admin credentials + Authentik OIDC client ID/secret |
 | Dash secrets | `dash-config/proxmox-secret.sops.yaml` | Proxmox API token for `dash-proxmox` secret in `dash` namespace |
 | | `dash-config/semaphore-secret.sops.yaml` | Semaphore Bearer API token for `dash-semaphore` secret in `dash` namespace |

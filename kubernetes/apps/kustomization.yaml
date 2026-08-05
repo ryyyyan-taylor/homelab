@@ -24,6 +24,7 @@ resources:
   - platform/uptime-kuma/application.yaml
   - platform/homepage/application.yaml
   - platform/argocd-image-updater/application.yaml
+  - platform/argocd-image-updater-config/application.yaml
   - platform/dash-config/application.yaml
   - platform/dash/application.yaml
   - platform/cluster-health/application.yaml

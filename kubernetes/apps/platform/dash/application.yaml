@@ -8,7 +8,7 @@ metadata:
     argocd-image-updater.argoproj.io/image-list: dash=ghcr.io/ryyyyan-taylor/homelab-dash
     argocd-image-updater.argoproj.io/dash.update-strategy: latest
     argocd-image-updater.argoproj.io/dash.pull-secret: pullsecret:argocd/ghcr-credentials
-    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/ghcr-credentials
     argocd-image-updater.argoproj.io/git-branch: main
   finalizers:
     - resources-finalizer.argocd.argoproj.io
