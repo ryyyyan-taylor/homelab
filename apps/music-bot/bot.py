@@ -370,6 +370,7 @@ async def _shuffle_all(player: wavelink.Player) -> None:
 @app_commands.describe(url="Spotify track, album, or playlist URL. Defaults to Way Way Back")
 async def play(interaction: discord.Interaction, url: str | None = None) -> None:
     await interaction.response.defer(ephemeral=True)
+    use_default = url is None
     url = url or DEFAULT_PLAYLIST_URL
 
     player = await _get_player(interaction, connect=True)
@@ -390,6 +391,9 @@ async def play(interaction: discord.Interaction, url: str | None = None) -> None
         if not tracks_meta:
             await interaction.followup.send("That playlist/album looks empty (or isn't accessible).", ephemeral=True)
             return
+
+        if use_default:
+            random.shuffle(tracks_meta)
 
         player.pending.extend(tracks_meta)
         await interaction.followup.send(
