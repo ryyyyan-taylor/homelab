@@ -367,9 +367,9 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Helm repo | `https://argoproj.github.io/argo-helm` |
 | Purpose | Watches ghcr.io for new image tags and writes the new tag back to git (ArgoCD then syncs the commit as usual) |
 | Registry | `ghcr.io` — credentials from `argocd/ghcr-credentials` Secret (not in repo — create manually after rebuild) |
-| Credentials secret | `kubectl -n argocd create secret generic ghcr-credentials --from-literal=username=ryyyyan-taylor --from-literal=password=<github-pat>` — same PAT doubles as git write-back credentials (needs `repo` scope, not just `read:packages`) |
+| Credentials secret | Opaque secret, 3 keys: `username` + `password` (GitHub PAT, needs `repo` scope — doubles as git write-back creds) and `.dockerconfigjson` (registry pull auth; v1.1.x requires the standard docker-registry field, plain `username`/`password` alone 404s with "does not have a field '.dockerconfigjson'"). Recreate: `kubectl -n argocd create secret generic ghcr-credentials --from-literal=username=ryyyyan-taylor --from-literal=password=<github-pat>`, then patch in `.dockerconfigjson` built from those same two values (`{"auths":{"ghcr.io":{"username":...,"password":...,"auth":"<base64 user:pass>"}}}`, base64-encoded as the secret value) |
 | Config | `platform/argocd-image-updater-config` app deploys an `ImageUpdater` CR (`annotation-based`) with `applicationRefs: [{namePattern: music-bot, useAnnotations: true}, {namePattern: dash, useAnnotations: true}]` — v1.1.x is a controller-runtime rewrite that only reconciles apps referenced by an `ImageUpdater` CR; the legacy `argocd-image-updater.argoproj.io/*` Application annotations are inert without one |
-| Notes | Per-app annotations set `write-back-method: git:secret:argocd/ghcr-credentials` (not bare `git`, which defaults to ArgoCD's own repo creds — this repo has none, since it's added as a public/anonymous read-only source) |
+| Notes | Per-app annotations set `write-back-method: git:secret:argocd/ghcr-credentials` (not bare `git`, which defaults to ArgoCD's own repo creds — this repo has none, since it's added as a public/anonymous read-only source). `update-strategy: digest` with `image-list: alias=image:latest` (explicit tag needed — no constraint errors otherwise). Writes back to a per-app `.argocd-source-<app>.yaml` (ArgoCD's own parameter-override convention, auto-picked-up alongside the Kustomize path) pinning `image:latest@sha256:...` — not a change to the Deployment manifest itself |
 
 ### whoami (SSO smoke test)
 
@@ -405,7 +405,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Lavalink | `ghcr.io/lavalink-devs/lavalink:4`, ClusterIP Service `lavalink.music-bot.svc.cluster.local:2333`, no IngressRoute — never leaves the cluster network |
 | Lavalink plugins | LavaSrc `4.8.3` (single-track Spotify link resolution, client-credentials flow), youtube-plugin `1.18.2` (actual audio; replaces Lavalink's deprecated built-in YouTube source) |
 | Audio source | YouTube only — Deezer explicitly out of scope (LavaSrc's Deezer support needs a non-distributed DRM master key) |
-| Bot app | `apps/music-bot/` — discord.py + Wavelink, image `ghcr.io/ryyyyan-taylor/homelab-music-bot`, built/pushed by `.github/workflows/music-bot.yaml`, auto-deployed via ArgoCD Image Updater |
+| Bot app | `apps/music-bot/` — discord.py + Wavelink, image `ghcr.io/ryyyyan-taylor/homelab-music-bot`, built/pushed by `.github/workflows/music-bot.yaml`, auto-deployed via ArgoCD Image Updater (see "ArgoCD Image Updater" above) — pinned digest lives in the bot-managed `kubernetes/apps/platform/music-bot/.argocd-source-music-bot.yaml`, not in `bot-deployment.yaml` |
 | Playlist/album resolution | Bot-side `SpotifyClient` (Authorization Code OAuth, own token — not LavaSrc) fetches the track list fast, then lazily resolves each track to YouTube audio (`ytsearch:`) as it enters a 5-track lookahead window. Needed because Spotify now blocks playlist/album reads for client-credentials (app-only) tokens — LavaSrc's only workaround does a slow extra HTTP call per track. Single-track links still go straight through LavaSrc as before. |
 | Secrets | `music-bot/music-bot-secret` (SOPS: `music-bot-config/music-bot-secret.sops.yaml`) — `lavalink-password`, `spotify-client-id`, `spotify-client-secret`, `spotify-refresh-token`, `discord-bot-token`, `discord-guild-id` |
 | Spotify app | Reuses the user's existing pre-2024 Spotify app (also used by `~/Code/spotipy`), not a newly-registered one — new apps get a stricter Development Mode that 403s on `GET /playlists/{id}/tracks` even with a valid user token; this older app is grandfathered with full access. Used for both Lavalink's client-credentials config and the bot's OAuth. |
@@ -443,7 +443,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | | |
 |---|---|
 | Namespace | `dash` |
-| Image | `ghcr.io/ryyyyan-taylor/homelab-dash:latest` (built by CI on push to `main`) |
+| Image | `ghcr.io/ryyyyan-taylor/homelab-dash:latest` (built by CI on push to `main`), auto-deployed via ArgoCD Image Updater (see "ArgoCD Image Updater" above) — pinned digest lives in the bot-managed `kubernetes/apps/platform/dash/.argocd-source-dash.yaml` |
 | URL | `https://dash.lab.ryantaylor.tech` |
 | Auth | None — internal only via Tailscale |
 | Source | `apps/dash/` — Go backend + Svelte 5 frontend, single static binary with embedded dist |
