@@ -1,0 +1,3 @@
+kustomize:
+  images:
+  - ghcr.io/ryyyyan-taylor/homelab-music-bot:latest@sha256:47a57cd3d049aebb10b2135b65afbf5d75adf9ccaef53e5b7ede598888638fa2
