@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "25"
-    argocd-image-updater.argoproj.io/image-list: music-bot=ghcr.io/ryyyyan-taylor/homelab-music-bot
+    argocd-image-updater.argoproj.io/image-list: music-bot=ghcr.io/ryyyyan-taylor/homelab-music-bot:latest
     argocd-image-updater.argoproj.io/music-bot.update-strategy: digest
     argocd-image-updater.argoproj.io/music-bot.pull-secret: pullsecret:argocd/ghcr-credentials
     argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/ghcr-credentials
