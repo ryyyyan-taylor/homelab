@@ -11,8 +11,10 @@
 #   3. talosctl bootstrap --nodes 10.0.1.200
 #   4. VMs reboot from disk; detach ISO from each VM in Proxmox UI
 #
-# Memory ballooning: dedicated = guaranteed floor, floating = cap.
-# Talos VMs return unused RAM to the host under pressure.
+# No ballooning on any node — control-plane and workers all run with a
+# fixed dedicated allocation. Ballooning previously caused guest-level
+# OOMs under load (workloads pinned at the dedicated floor, never
+# actually reaching the floating cap); see per-VM notes below.
 
 resource "proxmox_virtual_environment_vm" "talos_cp" {
   name      = "talos-cp"
@@ -85,9 +87,11 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
     type    = "host"
   }
 
+  # No ballooning — pinned at the dedicated floor with the rest of the
+  # cluster's memory pressure caused guest-level OOMs (same failure mode
+  # already fixed on talos_cp; see note above).
   memory {
-    dedicated = 4096
-    floating  = 6144
+    dedicated = 6144
   }
 
   disk {
@@ -139,9 +143,11 @@ resource "proxmox_virtual_environment_vm" "talos_worker_2" {
     type    = "host"
   }
 
+  # No ballooning — pinned at the dedicated floor with the rest of the
+  # cluster's memory pressure caused guest-level OOMs (same failure mode
+  # already fixed on talos_cp; see note above).
   memory {
-    dedicated = 4096
-    floating  = 6144
+    dedicated = 6144
   }
 
   disk {

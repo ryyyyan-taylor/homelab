@@ -55,8 +55,8 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
 | 200 | talos-cp | `10.0.1.200` | control-plane | 2 | 6 GB (no balloon) | 40 GB on `ssd-1`, `cache=writeback` |
-| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 4–6 GB (balloon) | 60 GB on `ssd-1`, `cache=writeback` |
-| 202 | talos-worker-2 | `10.0.1.202` | worker | 4 | 4–6 GB (balloon) | 60 GB on `ssd-1`, `cache=writeback` |
+| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
+| 202 | talos-worker-2 | `10.0.1.202` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
 
 - Talos v1.13.0, Kubernetes v1.36.0
 - Secrets: `kubernetes/talos/secrets.sops.yaml` (age-encrypted)
@@ -248,7 +248,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Known gotcha | `ServerSideApply=true` required — chart installs many CRDs that would conflict with ArgoCD's default 3-way merge |
 | Known gotcha | `monitoring` namespace must have `pod-security.kubernetes.io/enforce: privileged` for node-exporter (hostNetwork/hostPID/hostPath) |
 | Known gotcha | local-path PVCs + subPath bind mounts: kubelet's fsGroup chown does NOT propagate through the subPath. Init container must mount with the same `subPath` and `mountPath` as the main container, then chown there |
-| Known gotcha | Control plane VM must NOT balloon — when ballooned to floor (2 GB) under kube-prometheus-stack load, kube-apiserver OOMs in a Go runtime crash loop. Set `dedicated = 4096` (no `floating`) in Terraform |
+| Known gotcha | No Talos VM should balloon — ballooned memory sits pinned at the `dedicated` floor in practice (Talos doesn't run a guest agent to report real usage back to Proxmox), so the guest never actually gets the `floating` ceiling. Control plane hit this first (kube-apiserver OOM crash loop under kube-prometheus-stack load, fixed by dropping `floating`); both workers hit the same failure 2026-08-05/06 (pinned at 4 GB, <150 MB free, cascading pod OOMs). All 3 VMs now use a fixed `dedicated` value with no `floating` in Terraform |
 | Known gotcha | Grafana init-chown-data drops all caps except CHOWN; after Grafana writes 0700 dirs to the PVC, rolling updates fail traversing them. Fix: add `DAC_OVERRIDE` via `grafana.initChownData.securityContext.capabilities.add` |
 | Known gotcha | `prometheusAdapter.enabled: true` does not render resources when `fullnameOverride: monitoring` is set — use standalone metrics-server instead |
 | Known gotcha | Grafana 13 App Platform (grafana-apiserver) uses a separate `resource-db` SQLite file for unified storage. 3 concurrent job drivers contend on `resource_version` table at startup — enable `database.wal: true` in grafana.ini to enable WAL mode and eliminate SQLITE_BUSY errors |
