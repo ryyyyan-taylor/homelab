@@ -33,3 +33,4 @@ resources:
   - platform/open-webui/application.yaml
   - platform/music-bot-config/application.yaml
   - platform/music-bot/application.yaml
+  - platform/descheduler/application.yaml

@@ -151,6 +151,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 22 | semaphore | `semaphore` | Semaphore UI task runner (Helm) |
 | 24 | music-bot-config | `music-bot` | SOPS secrets (Lavalink password, Spotify creds, Discord bot token/guild ID) |
 | 25 | music-bot | `music-bot` | Lavalink (LavaSrc + YouTube plugin); bot Deployment added in Phase D |
+| 26 | descheduler | `kube-system` | Rebalances pods across nodes on a schedule (Helm) |
 
 ### cert-manager
 
@@ -264,6 +265,18 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | Helm repo | `https://kubernetes-sigs.github.io/metrics-server/` |
 | Purpose | Serves `metrics.k8s.io/v1beta1` — enables `kubectl top nodes/pods` and Homepage kubernetes widget CPU/memory display |
 | Known gotcha | Talos kubelet TLS certs are signed by the Talos CA. metrics-server must use `--kubelet-insecure-tls` to skip cert verification when scraping kubelet |
+
+### descheduler
+
+| | |
+|---|---|
+| Version | 0.36.0 (chart) |
+| Namespace | `kube-system` |
+| Helm repo | `https://kubernetes-sigs.github.io/descheduler/` |
+| Mode | `CronJob`, every 10 min (chart default is every 2 min — too chatty for a 3-node cluster) |
+| Purpose | Rebalances pods across worker nodes when one gets skewed — added after the 2026-08-05/06 incident where ArgoCD had packed 38 pods (90% mem requests) onto `talos-qif-ocq` while `talos-2q4-izc` sat at 13 pods (48%), starving the busy node |
+| Policy | `LowNodeUtilization` (evict from nodes >50% cpu/mem/pods to nodes <20%) + `RemovePodsHavingTooManyRestarts` (>100 restarts) + duplicate/affinity/taint/topology-spread cleanup. `nodeFit: true` so it never evicts a pod with nowhere to go. Capped at 3 evictions/node, 5/namespace per run |
+| Known gotcha | `PodsWithPVC` eviction protection is intentionally left enabled (chart default) — this cluster's `local-path` PVCs are node-pinned, so evicting those pods (postgres, prometheus, grafana, loki, ntfy, semaphore, uptime-kuma, open-webui) would just bounce them back to the same node for nothing |
 
 ### ntfy
 

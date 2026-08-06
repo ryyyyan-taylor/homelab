@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: descheduler
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "26"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/descheduler/
+    chart: descheduler
+    targetRevision: 0.36.0
+    helm:
+      values: |
+        # CronJob keeps this a periodic pass rather than a continuously
+        # running controller fighting the scheduler — cheaper for a
+        # 3-node homelab cluster and easier to reason about.
+        kind: CronJob
+        # Chart default is */2 * * * * — too chatty for this cluster size;
+        # rebalancing every 10 minutes is plenty to catch skew before it
+        # becomes a problem (see 2026-08-05/06 incident: one worker hit
+        # 90% memory requests while its sibling sat at 48%).
+        schedule: "*/10 * * * *"
+
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+
+        deschedulerPolicyAPIVersion: "descheduler/v1alpha2"
+        deschedulerPolicy:
+          # Caps blast radius per run — don't let a single pass evict half
+          # a node's pods at once.
+          maxNoOfPodsToEvictPerNode: 3
+          maxNoOfPodsToEvictPerNamespace: 5
+          profiles:
+            - name: default
+              pluginConfig:
+                - name: DefaultEvictor
+                  args:
+                    # Chart default already protects PodsWithPVC (local-path
+                    # PVCs are node-pinned here — evicting them just bounces
+                    # the pod right back to the same node) while allowing
+                    # eviction of plain local-storage (emptyDir) pods.
+                    podProtections:
+                      defaultDisabled:
+                        - "PodsWithLocalStorage"
+                      extraEnabled:
+                        - "PodsWithPVC"
+                    # Refuse to evict a pod unless it can actually be
+                    # rescheduled somewhere else — otherwise a busy cluster
+                    # just loses the pod for no gain.
+                    nodeFit: true
+                - name: RemoveDuplicates
+                - name: RemovePodsHavingTooManyRestarts
+                  args:
+                    podRestartThreshold: 100
+                    includingInitContainers: true
+                - name: RemovePodsViolatingNodeAffinity
+                  args:
+                    nodeAffinityType:
+                      - requiredDuringSchedulingIgnoredDuringExecution
+                - name: RemovePodsViolatingNodeTaints
+                - name: RemovePodsViolatingInterPodAntiAffinity
+                - name: RemovePodsViolatingTopologySpreadConstraint
+                - name: LowNodeUtilization
+                  args:
+                    thresholds:
+                      cpu: 20
+                      memory: 20
+                      pods: 20
+                    targetThresholds:
+                      cpu: 50
+                      memory: 50
+                      pods: 50
+              plugins:
+                balance:
+                  enabled:
+                    - RemoveDuplicates
+                    - RemovePodsViolatingTopologySpreadConstraint
+                    - LowNodeUtilization
+                deschedule:
+                  enabled:
+                    - RemovePodsHavingTooManyRestarts
+                    - RemovePodsViolatingNodeTaints
+                    - RemovePodsViolatingNodeAffinity
+                    - RemovePodsViolatingInterPodAntiAffinity
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
