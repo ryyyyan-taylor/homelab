@@ -21,8 +21,8 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
   node_name = "rt"
   vm_id     = 200
 
-  started  = false
-  on_boot  = true
+  started = false
+  on_boot = true
 
   cpu {
     cores   = 2
@@ -45,6 +45,9 @@ resource "proxmox_virtual_environment_vm" "talos_cp" {
     file_format  = "raw"
     discard      = "on"
     cache        = "writeback"
+    # aio=io_uring leaks iovecs on 6.14.x (CVE-2026-23259); host kernel is
+    # pinned to 6.14.11-9-pve for the NVIDIA driver, so avoid the path.
+    aio = "threads"
   }
 
   cdrom {
@@ -78,8 +81,8 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
   node_name = "rt"
   vm_id     = 201
 
-  started  = false
-  on_boot  = true
+  started = false
+  on_boot = true
 
   cpu {
     cores   = 4
@@ -101,6 +104,9 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
     file_format  = "raw"
     discard      = "on"
     cache        = "writeback"
+    # aio=io_uring leaks iovecs on 6.14.x (CVE-2026-23259); host kernel is
+    # pinned to 6.14.11-9-pve for the NVIDIA driver, so avoid the path.
+    aio = "threads"
   }
 
   cdrom {
@@ -134,8 +140,8 @@ resource "proxmox_virtual_environment_vm" "talos_worker_2" {
   node_name = "rt"
   vm_id     = 202
 
-  started  = false
-  on_boot  = true
+  started = false
+  on_boot = true
 
   cpu {
     cores   = 4
@@ -157,6 +163,9 @@ resource "proxmox_virtual_environment_vm" "talos_worker_2" {
     file_format  = "raw"
     discard      = "on"
     cache        = "writeback"
+    # aio=io_uring leaks iovecs on 6.14.x (CVE-2026-23259); host kernel is
+    # pinned to 6.14.11-9-pve for the NVIDIA driver, so avoid the path.
+    aio = "threads"
   }
 
   cdrom {
