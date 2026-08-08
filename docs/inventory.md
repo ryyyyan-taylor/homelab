@@ -49,13 +49,14 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | `ssd-1` | LVM-thin | Talos VM disks | Intel 2500 Pro SSD; ~219 GB |
 | `ssd-2` | LVM-thin (not yet provisioned) | Future backups / redundancy | Intel 2500 Pro SSD; LVM VG must be created before adding as Proxmox storage |
 | `old-hdd` | Directory | — | Filesystem mount only; not a Proxmox storage pool |
+| photos drive | Not a Proxmox storage pool | Immich photo library | WD1003FZEX 1TB HDD (`/dev/sdd`, `/dev/disk/by-id/ata-WDC_WD1003FZEX-00MK2A0_WD-WCC3FP7Y4VCR`), passed through whole-disk (`scsi1`) to `talos-worker-1` (VM 201) — not carved into a Proxmox storage pool at all. Formatted XFS and mounted at `/var/mnt/photos` inside the VM via Talos `UserVolumeConfig` (`kubernetes/talos/patches/worker-1-photos-volume.yaml`); exposed to k8s as a static `local` PV (`local-photos` StorageClass, `kubernetes/apps/platform/photos-config/storage.yaml`), hard-pinned to that node via `nodeAffinity`. Separate from `ssd-2` — that stays earmarked for backups/redundancy. |
 
 ## Talos Cluster (VMs)
 
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
 | 200 | talos-cp | `10.0.1.200` | control-plane | 2 | 6 GB (no balloon) | 40 GB on `ssd-1`, `cache=writeback` |
-| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
+| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback`; plus whole-disk passthrough (`scsi1`) of the 1TB photos drive — see Storage table |
 | 202 | talos-worker-2 | `10.0.1.202` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
 
 - Talos v1.13.0, Kubernetes v1.36.0
@@ -155,6 +156,8 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 24 | music-bot-config | `music-bot` | SOPS secrets (Lavalink password, Spotify creds, Discord bot token/guild ID) |
 | 25 | music-bot | `music-bot` | Lavalink (LavaSrc + YouTube plugin); bot Deployment added in Phase D |
 | 26 | descheduler | `kube-system` | Rebalances pods across nodes on a schedule (Helm) |
+| 27 | photos-config | `photos` | Namespace, SOPS DB credentials, static `local` PV/StorageClass for the photos drive, self-managed Postgres StatefulSet, IngressRoute |
+| 28 | photos | `photos` | Immich (Helm, `immich-charts` 0.12.0 / `v2.6.3`) — self-hosted photo library, `photos.lab.ryantaylor.tech` |
 
 ### cert-manager
 
@@ -432,6 +435,24 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Resources (bot) | req `cpu 50m / mem 96Mi`, lim `cpu 250m / mem 256Mi` — provisional |
 | Known gotcha | If playback fails with "Sign in to confirm you're not a bot", enable `oauth.enabled: true` under `plugins.youtube` in the ConfigMap — the plugin logs a device-code URL to pod logs to link an account |
 | Known gotcha | Lavalink 4.2.x's `/version` endpoint requires the `Authorization` header — liveness/readiness probes use `tcpSocket`, not `httpGet`, since probe headers can't source a secret |
+
+### Immich (Photos)
+
+| | |
+|---|---|
+| Namespace | `photos` |
+| Status | Phases A (Immich backend) + B (storage cutover) complete 2026-08-08. Phase C (custom bracket-detection/ingest pipeline) and D (publish site) not started — see `PLAN.md` |
+| URL | `photos.lab.ryantaylor.tech`, Authentik forward-auth (own login required past that — Immich has no trusted-header auto-login) |
+| Chart | `immich-charts` 0.12.0 (repo `https://immich-app.github.io/immich-charts`), app `v2.6.3` — components `immich-server`, `immich-machine-learning`, `immich-valkey` (Deployments), release name `immich` |
+| Postgres | Self-managed StatefulSet (`immich-postgres`, `photos-config`) — the chart doesn't bundle one. Image `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` (pinned to the same tag+digest as Immich's own `docker-compose.yml` for `v2.6.3`), needed for the VectorChord/pgvector extension CLIP search relies on. 10Gi on `local-path` (fast SSD) — not the photos drive. |
+| Photo library storage | `immich-library` PVC → `photos-library-pv` (900Gi, `local-photos` StorageClass) → `/var/mnt/photos` on the dedicated 1TB drive on `talos-worker-1`. See Storage table and Talos Cluster section. |
+| ML model cache | `local-path` PVC (10Gi), avoids re-downloading CLIP/facial-recognition models on every pod restart |
+| Redis/queue | Chart's bundled `valkey` subchart, `emptyDir` — job queue only, fine to lose on restart |
+| Secrets | `photos/photos-secrets` (SOPS: `photos-config/photos-secret.sops.yaml`) — `db-username`, `db-password`. No JWT/app secret needed (Immich's auth is its own first-run admin setup, not env-configured) |
+| Resources | server req `cpu 500m / mem 1Gi`, lim `cpu 2 / mem 2Gi`; ML req `cpu 500m / mem 1Gi`, lim `cpu 2 / mem 3Gi`; postgres req `cpu 250m / mem 512Mi`, lim `cpu 1 / mem 1Gi`; valkey req `cpu 25m / mem 32Mi`, lim `cpu 250m / mem 128Mi` — all provisional, revise after observing steady-state |
+| Known gotcha | The drive's ATA serial isn't forwarded through QEMU's raw block-device passthrough (shows as generic "QEMU HARDDISK" in Talos) — the `UserVolumeConfig` disk selector matches by size instead (`disk.size > 900u * 1024u * 1024u * 1024u`), since the only other disk on that node is the 64GB Talos install disk |
+| Known gotcha | `talosctl apply-config` in this Talos version requires a full `v1alpha1 Config` document — adding a standalone document like `UserVolumeConfig` on its own needs `talosctl patch machineconfig --patch-file ...` instead |
+| Known gotcha | The photo library PV/PVC is a plain k8s `local` volume with `nodeAffinity` (`local-photos` StorageClass, `kubernetes.io/no-provisioner`), not a second `local-path-provisioner` instance or a node-scoped path entry on the existing one — the latter would apply to *any* PVC landing on that node, not just Immich's. The scheduler places `immich-server` on `talos-2q4-izc` automatically via the bound PV's `nodeAffinity`; no explicit `nodeSelector` needed. |
 
 ### Semaphore
 
