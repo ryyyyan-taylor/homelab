@@ -13,6 +13,40 @@ spec:
       labels:
         app: lavalink
     spec:
+      initContainers:
+        # lavalink.plugins in the ConfigMap auto-downloads these from
+        # maven.lavalink.dev on every cold start of the plugins volume; that
+        # host has proven unreliable (outage 2026-08-08). Pre-seed the same
+        # jars from GitHub releases into the persistent plugins volume so
+        # Lavalink's PluginManager finds them already present and skips the
+        # download entirely. Idempotent — skips files that already exist, so
+        # this is a no-op once the volume is populated.
+        - name: fetch-plugins
+          image: curlimages/curl:8.21.0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              fetch() {
+                if [ -f "/plugins/$2" ]; then
+                  echo "$2 already present, skipping"
+                else
+                  curl -fsSL --max-time 60 -o "/plugins/$2" "$1"
+                fi
+              }
+              fetch https://github.com/topi314/LavaSrc/releases/download/4.8.3/lavasrc-plugin-4.8.3.jar lavasrc-plugin-4.8.3.jar
+              fetch https://github.com/lavalink-devs/youtube-source/releases/download/1.18.2/youtube-plugin-1.18.2.jar youtube-plugin-1.18.2.jar
+          volumeMounts:
+            - name: plugins
+              mountPath: /plugins
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 64Mi
       containers:
         - name: lavalink
           image: ghcr.io/lavalink-devs/lavalink:4
@@ -38,6 +72,8 @@ spec:
             - name: config
               mountPath: /opt/Lavalink/application.yml
               subPath: application.yml
+            - name: plugins
+              mountPath: /opt/Lavalink/plugins
           resources:
             requests:
               cpu: 200m
@@ -51,14 +87,18 @@ spec:
             # sufficient to confirm the server is up and listening.
             tcpSocket:
               port: 2333
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             tcpSocket:
               port: 2333
-            initialDelaySeconds: 30
+            initialDelaySeconds: 45
             periodSeconds: 15
+            failureThreshold: 5
       volumes:
         - name: config
           configMap:
             name: lavalink-config
+        - name: plugins
+          persistentVolumeClaim:
+            claimName: lavalink-plugins
