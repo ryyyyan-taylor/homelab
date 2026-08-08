@@ -1,0 +1,97 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: photos
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "28"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://immich-app.github.io/immich-charts
+    chart: immich
+    targetRevision: 0.12.0
+    helm:
+      releaseName: immich
+      values: |
+        immich:
+          persistence:
+            library:
+              existingClaim: immich-library
+
+        valkey:
+          enabled: true
+          controllers:
+            main:
+              containers:
+                main:
+                  resources:
+                    requests:
+                      cpu: 25m
+                      memory: 32Mi
+                    limits:
+                      cpu: 250m
+                      memory: 128Mi
+
+        server:
+          service:
+            main:
+              ports:
+                http:
+                  port: 2283
+          controllers:
+            main:
+              containers:
+                main:
+                  env:
+                    DB_HOSTNAME: immich-postgres.photos.svc.cluster.local
+                    DB_PORT: "5432"
+                    DB_DATABASE_NAME: immich
+                    DB_USERNAME:
+                      valueFrom:
+                        secretKeyRef:
+                          name: photos-secrets
+                          key: db-username
+                    DB_PASSWORD:
+                      valueFrom:
+                        secretKeyRef:
+                          name: photos-secrets
+                          key: db-password
+                  resources:
+                    requests:
+                      cpu: 500m
+                      memory: 1Gi
+                    limits:
+                      cpu: "2"
+                      memory: 2Gi
+
+        machine-learning:
+          persistence:
+            cache:
+              enabled: true
+              size: 10Gi
+              type: persistentVolumeClaim
+              accessMode: ReadWriteOnce
+              storageClass: local-path
+          controllers:
+            main:
+              containers:
+                main:
+                  resources:
+                    requests:
+                      cpu: 500m
+                      memory: 1Gi
+                    limits:
+                      cpu: "2"
+                      memory: 3Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: photos
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

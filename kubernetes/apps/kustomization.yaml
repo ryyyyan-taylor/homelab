@@ -34,3 +34,5 @@ resources:
   - platform/music-bot-config/application.yaml
   - platform/music-bot/application.yaml
   - platform/descheduler/application.yaml
+  - platform/photos-config/application.yaml
+  - platform/photos/application.yaml

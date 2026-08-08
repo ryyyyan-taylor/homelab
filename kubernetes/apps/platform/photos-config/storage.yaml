@@ -1,0 +1,52 @@
+# Static (not dynamically provisioned) storage for the 1TB photos drive —
+# see PLAN.md "Photo Management Pipeline" Phase B and
+# kubernetes/talos/patches/worker-1-photos-volume.yaml. The drive is
+# hard-pinned to talos-2q4-izc (single physical disk, D3/D4 in the plan), so
+# this is a plain k8s `local` PV with nodeAffinity rather than a second
+# local-path-provisioner instance — one disk, one claim, no dynamic
+# provisioning needed. reclaimPolicy: Retain — never auto-delete the photo
+# library if the PVC is ever removed.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-photos
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: photos-library-pv
+spec:
+  capacity:
+    storage: 900Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-photos
+  local:
+    path: /var/mnt/photos
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - talos-2q4-izc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: photos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-photos
+  volumeName: photos-library-pv
+  resources:
+    requests:
+      storage: 900Gi
