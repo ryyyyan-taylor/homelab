@@ -126,11 +126,19 @@ resource "proxmox_virtual_environment_vm" "talos_worker_1" {
 
   boot_order = ["ide2", "virtio0"]
 
+  # scsi1 (out-of-band, not expressible here): the 1TB photos drive,
+  # attached by hand via `qm set 201 -scsi1
+  # /dev/disk/by-id/ata-WDC_WD1003FZEX-00MK2A0_WD-WCC3FP7Y4VCR,discard=on`.
+  # The provider's disk{} block only manages datastore-backed volumes, not
+  # raw host block-device passthrough — same category of exception as the
+  # GPU device lines in /etc/pve/lxc/170.conf. `disk` is ignored below so a
+  # future apply doesn't see it as drift and remove it.
   lifecycle {
     ignore_changes = [
       started,
       boot_order,
       cdrom,
+      disk,
     ]
   }
 }
