@@ -65,7 +65,7 @@ spec:
                       memory: 1Gi
                     limits:
                       cpu: "2"
-                      memory: 2Gi
+                      memory: 4Gi
 
         machine-learning:
           persistence:
@@ -77,7 +77,12 @@ spec:
               storageClass: local-path
           controllers:
             main:
-              replicas: 0 # temporary — releasing the cache PVC to re-provision on another node
+              pod:
+                # immich-server + immich-postgres are hard-pinned to
+                # talos-2q4-izc (900Gi photos drive is a local PV there).
+                # Keep ML off that node so upload spikes don't contend.
+                nodeSelector:
+                  kubernetes.io/hostname: talos-qif-ocq
               containers:
                 main:
                   resources:
