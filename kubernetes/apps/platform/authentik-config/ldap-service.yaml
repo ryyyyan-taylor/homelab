@@ -5,7 +5,7 @@ metadata:
   name: authentik-ldap-outpost
   namespace: authentik
 spec:
-  replicas: 1
+  replicas: 0 # depends on authentik-server, which is scaled to 0
   selector:
     matchLabels:
       app: authentik-ldap-outpost

@@ -40,7 +40,7 @@ spec:
         server:
           ingress:
             enabled: false
-          replicas: 1
+          replicas: 0 # scaled to 0 until further notice — internal-only network, not needed as gatekeeper
           resources:
             requests:
               cpu: 25m
@@ -50,7 +50,7 @@ spec:
               memory: 900Mi
 
         worker:
-          replicas: 1
+          replicas: 0
           resources:
             requests:
               cpu: 50m

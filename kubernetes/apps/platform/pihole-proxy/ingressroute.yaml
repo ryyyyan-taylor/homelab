@@ -9,9 +9,6 @@ spec:
   routes:
     - kind: Rule
       match: Host(`pihole.lab.ryantaylor.tech`)
-      middlewares:
-        - name: authentik-forwardauth
-          namespace: traefik
       services:
         - name: pihole
           port: 80

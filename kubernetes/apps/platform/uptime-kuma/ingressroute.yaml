@@ -9,9 +9,6 @@ spec:
   routes:
     - match: Host(`uptime.lab.ryantaylor.tech`)
       kind: Rule
-      middlewares:
-        - name: authentik-forwardauth
-          namespace: traefik
       services:
         - name: uptime-kuma
           port: 3001
