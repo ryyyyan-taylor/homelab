@@ -4,7 +4,7 @@ metadata:
   name: open-webui
   namespace: open-webui
 spec:
-  replicas: 1
+  replicas: 0 # scaled to 0 until further notice — ollama LXC is powered off
   strategy:
     type: Recreate
   selector:
