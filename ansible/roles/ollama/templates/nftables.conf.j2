@@ -6,8 +6,8 @@ table inet filter {
 	chain input {
 		type filter hook input priority filter;
 
-		# Ollama API (11434) restricted to cluster + Tailscale — see PLAN.md
-		# Phase D. Everything else (SSH, node_exporter, etc.) is untouched.
+		# Ollama API (11434) restricted to cluster + Tailscale — see the
+		# LXC-Ollama wiki page. Everything else (SSH, node_exporter, etc.) is untouched.
 		# Loopback must be allowed explicitly - `ollama` CLI itself talks to
 		# 127.0.0.1, which otherwise gets caught by the reject rule below.
 		iifname "lo" accept

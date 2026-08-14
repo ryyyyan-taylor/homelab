@@ -1,6 +1,6 @@
 # UserVolumeConfig for the 1TB photos drive, passed through to talos-worker-1
-# (VM 201) as scsi1 — see terraform/talos-vms.tf and PLAN.md "Photo Management
-# Pipeline" Phase B. QEMU's raw block-device passthrough here doesn't forward
+# (VM 201) as scsi1 — see terraform/talos-vms.tf and the App-Immich/Storage
+# wiki pages. QEMU's raw block-device passthrough here doesn't forward
 # the underlying ATA serial (shows up as generic "QEMU HARDDISK"), so the
 # disk is selected by size instead — the only other disk on this node is the
 # 64GB Talos install disk (vda). Mounts automatically at /var/mnt/photos.

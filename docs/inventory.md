@@ -92,7 +92,7 @@ device initialized; a custom `nvidia-uvm-init.service` recreates
 system). Device passthrough into CT 170 is set directly in
 `/etc/pve/lxc/170.conf` (`lxc.cgroup2.devices.allow` + `lxc.mount.entry`) —
 outside Terraform state, must be re-added by hand if the container is ever
-recreated. See `PLAN.md` Local LLM section for full gotchas.
+recreated. See the [LXC-Ollama wiki page](https://github.com/ryyyyan-taylor/homelab/wiki/LXC-Ollama) for full gotchas.
 
 ---
 

@@ -1,8 +1,8 @@
 ---
 ollama_version: "0.32.5"
 
-# Must match the Proxmox host's NVIDIA driver exactly (PLAN.md Phase A/B
-# gotchas) — the container has no kernel module of its own, only the
+# Must match the Proxmox host's NVIDIA driver exactly (see the LXC-Ollama
+# wiki page) — the container has no kernel module of its own, only the
 # userspace driver libraries talking to the host's passed-through devices.
 ollama_nvidia_driver_version: "550.163.01-2"
 
@@ -17,7 +17,7 @@ ollama_pull_models:
 
 # Sources allowed to reach the Ollama API (11434) — everything else gets
 # rejected. Enforced via nftables inside the container itself, not Proxmox's
-# firewall (see PLAN.md Known Issues: enabling Proxmox's cluster-wide
+# firewall (see the LXC-Ollama wiki page: enabling Proxmox's cluster-wide
 # firewall switch would also start evaluating traffic for the Talos VMs,
 # which all have firewall=true set too — far bigger blast radius than
 # intended for this one container).

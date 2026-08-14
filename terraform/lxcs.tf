@@ -345,7 +345,7 @@ resource "proxmox_virtual_environment_container" "network" {
 
 # CT 170 — Ollama (GPU LXC)
 # GPU device passthrough is set directly in Proxmox and not tracked by Terraform:
-#   lxc.cgroup2.devices.allow + lxc.mount.entry for /dev/nvidia*, see PLAN.md Phase B
+#   lxc.cgroup2.devices.allow + lxc.mount.entry for /dev/nvidia*, see the LXC-Ollama wiki page
 resource "proxmox_virtual_environment_container" "ollama" {
   node_name     = "rt"
   vm_id         = 170

@@ -1,5 +1,5 @@
 # Static (not dynamically provisioned) storage for the 1TB photos drive —
-# see PLAN.md "Photo Management Pipeline" Phase B and
+# see the App-Immich/Storage wiki pages and
 # kubernetes/talos/patches/worker-1-photos-volume.yaml. The drive is
 # hard-pinned to talos-2q4-izc (single physical disk, D3/D4 in the plan), so
 # this is a plain k8s `local` PV with nodeAffinity rather than a second
