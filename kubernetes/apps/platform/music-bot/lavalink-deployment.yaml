@@ -1,3 +1,9 @@
+# IMPORTANT: music-bot's wavelink Node websocket does not reconnect on its
+# own after this pod restarts (confirmed 2026-08-19 — no "Lavalink node
+# connected" log line for 20+ min post-restart, causing 30s
+# ChannelTimeoutException on every /play that looks like a voice/network
+# bug but isn't). Always `kubectl rollout restart deployment/music-bot -n
+# music-bot` right after restarting this deployment.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
