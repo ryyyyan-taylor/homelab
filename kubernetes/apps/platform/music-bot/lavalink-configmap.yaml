@@ -64,12 +64,10 @@ data:
           - ANDROID_VR
           - WEB
           - WEBEMBEDDED
-        oauth:
-          enabled: true
-          # No refreshToken yet — first startup logs a device-code URL to
-          # link an account. Once linked, the plugin logs the refreshToken;
-          # paste it here (or move to a secret) to skip re-linking on
-          # future restarts.
+        # OAuth attempt on 2026-08-19 accidentally used the primary Google
+        # account instead of a burner — reverted. See CLAUDE.md/PLAN.md
+        # before re-attempting; revoke the grant at
+        # https://myaccount.google.com/permissions first.
 
     metrics:
       prometheus:
