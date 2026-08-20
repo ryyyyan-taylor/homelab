@@ -14,14 +14,18 @@ data:
         - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.8.3"
           repository: "https://maven.lavalink.dev/releases"
           snapshot: false
-        - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-          repository: "https://maven.lavalink.dev/releases"
-          snapshot: false
+        # dev.lavalink.youtube (youtube-plugin) removed 2026-08-19 — every
+        # client (WEB, WEB_EMBEDDED_PLAYER, TV/OAuth, TVHTML5_SIMPLY, MWEB,
+        # ANDROID_MUSIC, ANDROID_VR, IOS) failed for every track. TV hit an
+        # open upstream bug (lavalink-devs/youtube-source#226); the rest
+        # hit YouTube bot detection or SABR-only formats. Replaced by
+        # lavasrc's ytdlp source below, which tracks YouTube's changes
+        # more actively.
       server:
         password: "${LAVALINK_SERVER_PASSWORD}"
         sources:
-          # Built-in youtube source is deprecated/unreliable — youtube-plugin
-          # above replaces it.
+          # Built-in youtube source is deprecated/unreliable — lavasrc's
+          # ytdlp source below replaces it.
           youtube: false
           bandcamp: false
           soundcloud: false
@@ -46,7 +50,7 @@ data:
           vkmusic: false
           tidal: false
           qobuz: false
-          ytdlp: false
+          ytdlp: true
           jiosaavn: false
         spotify:
           clientId: "${SPOTIFY_CLIENT_ID}"
@@ -54,28 +58,11 @@ data:
           countryCode: "US"
           playlistLoadLimit: 6
           albumLoadLimit: 6
-      youtube:
-        enabled: true
-        allowSearch: true
-        allowDirectVideoIds: true
-        allowDirectPlaylistIds: true
-        clients:
-          - MUSIC
-          - TV
-          - TVHTML5_SIMPLY
-          - MWEB
-          - ANDROID_MUSIC
-          - IOS
-          - ANDROID_VR
-          - WEB
-          - WEBEMBEDDED
-        oauth:
-          enabled: true
-          # Only the TV client actually uses OAuth (see youtube-source
-          # README "Available Clients" table) — it must be in the clients
-          # list above or the grant is a no-op. Linked to a burner Google
-          # account on 2026-08-19; token stored in music-bot-secret.
-          refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN}"
+        ytdlp:
+          # Binary is (re-)fetched fresh on every pod start by the
+          # fetch-ytdlp init container — see lavalink-deployment.yaml.
+          path: "/opt/yt-dlp/yt-dlp"
+          searchLimit: 10
 
     metrics:
       prometheus:

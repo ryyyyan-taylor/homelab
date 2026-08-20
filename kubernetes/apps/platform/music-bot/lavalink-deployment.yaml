@@ -42,7 +42,11 @@ spec:
                 fi
               }
               fetch https://github.com/topi314/LavaSrc/releases/download/4.8.3/lavasrc-plugin-4.8.3.jar lavasrc-plugin-4.8.3.jar
-              fetch https://github.com/lavalink-devs/youtube-source/releases/download/1.18.2/youtube-plugin-1.18.2.jar youtube-plugin-1.18.2.jar
+              # Lavalink loads every jar present in this volume regardless
+              # of the lavalink.plugins list in the ConfigMap — remove the
+              # retired youtube-plugin jar or it keeps loading and
+              # competing with lavasrc's ytdlp source for ytsearch:.
+              rm -f /plugins/youtube-plugin-1.18.2.jar
           volumeMounts:
             - name: plugins
               mountPath: /plugins
@@ -53,6 +57,30 @@ spec:
             limits:
               cpu: 250m
               memory: 64Mi
+        # yt-dlp (used by lavasrc's ytdlp source, see ConfigMap) is
+        # deliberately re-fetched on every start rather than skip-if-present
+        # like the jars above — unlike pinned plugin versions, yt-dlp needs
+        # to track YouTube's changes, and "latest" is the whole point.
+        - name: fetch-ytdlp
+          image: curlimages/curl:8.21.0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              curl -fsSL --max-time 60 -o /opt/yt-dlp/yt-dlp \
+                https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
+              chmod +x /opt/yt-dlp/yt-dlp
+          volumeMounts:
+            - name: ytdlp
+              mountPath: /opt/yt-dlp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
       containers:
         - name: lavalink
           image: ghcr.io/lavalink-devs/lavalink:4
@@ -74,17 +102,14 @@ spec:
                 secretKeyRef:
                   name: music-bot-secret
                   key: spotify-client-secret
-            - name: YOUTUBE_OAUTH_REFRESH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: music-bot-secret
-                  key: youtube-oauth-refresh-token
           volumeMounts:
             - name: config
               mountPath: /opt/Lavalink/application.yml
               subPath: application.yml
             - name: plugins
               mountPath: /opt/Lavalink/plugins
+            - name: ytdlp
+              mountPath: /opt/yt-dlp
           resources:
             requests:
               cpu: 200m
@@ -113,3 +138,8 @@ spec:
         - name: plugins
           persistentVolumeClaim:
             claimName: lavalink-plugins
+        - name: ytdlp
+          # emptyDir, not a PVC — the binary is re-fetched every pod start
+          # anyway (see fetch-ytdlp init container), so persistence buys
+          # nothing here.
+          emptyDir: {}
