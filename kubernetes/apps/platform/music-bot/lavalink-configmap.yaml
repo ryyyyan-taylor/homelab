@@ -61,13 +61,18 @@ data:
         allowDirectPlaylistIds: true
         clients:
           - MUSIC
+          - TV
           - ANDROID_VR
           - WEB
           - WEBEMBEDDED
-        # OAuth attempt on 2026-08-19 accidentally used the primary Google
-        # account instead of a burner — reverted. See CLAUDE.md/PLAN.md
-        # before re-attempting; revoke the grant at
-        # https://myaccount.google.com/permissions first.
+        oauth:
+          enabled: true
+          # Only the TV client actually uses OAuth (see youtube-source
+          # README "Available Clients" table) — it must be in the clients
+          # list above or the grant is a no-op. No refreshToken yet — first
+          # startup logs a device-code URL; use a BURNER Google account.
+          # Once linked, the plugin logs the refreshToken; paste it here
+          # (or move to a secret) to skip re-linking on future restarts.
 
     metrics:
       prometheus:
