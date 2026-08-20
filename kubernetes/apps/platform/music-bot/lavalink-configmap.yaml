@@ -69,10 +69,9 @@ data:
           enabled: true
           # Only the TV client actually uses OAuth (see youtube-source
           # README "Available Clients" table) — it must be in the clients
-          # list above or the grant is a no-op. No refreshToken yet — first
-          # startup logs a device-code URL; use a BURNER Google account.
-          # Once linked, the plugin logs the refreshToken; paste it here
-          # (or move to a secret) to skip re-linking on future restarts.
+          # list above or the grant is a no-op. Linked to a burner Google
+          # account on 2026-08-19; token stored in music-bot-secret.
+          refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN}"
 
     metrics:
       prometheus:

@@ -68,6 +68,11 @@ spec:
                 secretKeyRef:
                   name: music-bot-secret
                   key: spotify-client-secret
+            - name: YOUTUBE_OAUTH_REFRESH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: youtube-oauth-refresh-token
           volumeMounts:
             - name: config
               mountPath: /opt/Lavalink/application.yml
