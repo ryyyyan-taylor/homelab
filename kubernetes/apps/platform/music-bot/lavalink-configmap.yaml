@@ -64,9 +64,12 @@ data:
           - ANDROID_VR
           - WEB
           - WEBEMBEDDED
-        # If playback fails with a "Sign in to confirm you're not a bot" error
-        # during Phase B/E testing, set oauth.enabled: true — the plugin logs
-        # a device-code URL to pod logs on first startup to link an account.
+        oauth:
+          enabled: true
+          # No refreshToken yet — first startup logs a device-code URL to
+          # link an account. Once linked, the plugin logs the refreshToken;
+          # paste it here (or move to a secret) to skip re-linking on
+          # future restarts.
 
     metrics:
       prometheus:
