@@ -334,7 +334,10 @@ async def _play_previous(player: wavelink.Player) -> bool:
 
 async def _resolve_one(meta: TrackMeta) -> wavelink.Playable | None:
     try:
-        results: wavelink.Search = await wavelink.Playable.search(f"ytsearch:{meta.title} {meta.artist}")
+        # source=None: query already has ytsearch:; wavelink would prepend ytmsearch: on top
+        results: wavelink.Search = await wavelink.Playable.search(
+            f"ytsearch:{meta.title} {meta.artist}", source=None
+        )
     except wavelink.LavalinkLoadException:
         return None
     if not results or isinstance(results, wavelink.Playlist):
