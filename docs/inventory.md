@@ -49,14 +49,14 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | `ssd-1` | LVM-thin | Talos VM disks | Intel 2500 Pro SSD; ~219 GB |
 | `ssd-2` | LVM-thin (not yet provisioned) | Future backups / redundancy | Intel 2500 Pro SSD; LVM VG must be created before adding as Proxmox storage |
 | `old-hdd` | Directory | — | Filesystem mount only; not a Proxmox storage pool |
-| photos drive | Not a Proxmox storage pool | Immich photo library | WD1003FZEX 1TB HDD (`/dev/sdd`, `/dev/disk/by-id/ata-WDC_WD1003FZEX-00MK2A0_WD-WCC3FP7Y4VCR`), passed through whole-disk (`scsi1`) to `talos-worker-1` (VM 201) — not carved into a Proxmox storage pool at all. Formatted XFS and mounted at `/var/mnt/photos` inside the VM via Talos `UserVolumeConfig` (`kubernetes/talos/patches/worker-1-photos-volume.yaml`); exposed to k8s as a static `local` PV (`local-photos` StorageClass, `kubernetes/apps/platform/photos-config/storage.yaml`), hard-pinned to that node via `nodeAffinity`. Separate from `ssd-2` — that stays earmarked for backups/redundancy. |
+| photos drive (decommissioned) | Not a Proxmox storage pool | Formerly Immich photo library | WD1003FZEX 1TB HDD (`/dev/sdd`, `/dev/disk/by-id/ata-WDC_WD1003FZEX-00MK2A0_WD-WCC3FP7Y4VCR`). **Decommissioned 2026-09-09** — detached from `talos-worker-1` (`qm set 201 --delete scsi1`) after Immich was torn down; XFS partition left intact, not wiped. Free for reassignment. See Immich (Photos) section. Separate from `ssd-2` — that stays earmarked for backups/redundancy. |
 
 ## Talos Cluster (VMs)
 
 | VM ID | Hostname | IP | Role | vCPU | RAM | Disk |
 |---|---|---|---|---|---|---|
 | 200 | talos-cp | `10.0.1.200` | control-plane | 2 | 6 GB (no balloon) | 40 GB on `ssd-1`, `cache=writeback` |
-| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback`; plus whole-disk passthrough (`scsi1`) of the 1TB photos drive — see Storage table |
+| 201 | talos-worker-1 | `10.0.1.201` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
 | 202 | talos-worker-2 | `10.0.1.202` | worker | 4 | 6 GB (no balloon) | 60 GB on `ssd-1`, `cache=writeback` |
 
 - Talos v1.13.0, Kubernetes v1.36.0
@@ -156,8 +156,6 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 24 | music-bot-config | `music-bot` | SOPS secrets (Lavalink password, Spotify creds, Discord bot token/guild ID) |
 | 25 | music-bot | `music-bot` | Lavalink (LavaSrc + YouTube plugin); bot Deployment added in Phase D |
 | 26 | descheduler | `kube-system` | Rebalances pods across nodes on a schedule (Helm) |
-| 27 | photos-config | `photos` | Namespace, SOPS DB credentials, static `local` PV/StorageClass for the photos drive, self-managed Postgres StatefulSet, IngressRoute |
-| 28 | photos | `photos` | Immich (Helm, `immich-charts` 0.12.0 / `v2.6.3`) — self-hosted photo library, `photos.lab.ryantaylor.tech` |
 
 ### cert-manager
 
@@ -437,12 +435,19 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Known gotcha | If playback fails with "Sign in to confirm you're not a bot", enable `oauth.enabled: true` under `plugins.youtube` in the ConfigMap — the plugin logs a device-code URL to pod logs to link an account |
 | Known gotcha | Lavalink 4.2.x's `/version` endpoint requires the `Authorization` header — liveness/readiness probes use `tcpSocket`, not `httpGet`, since probe headers can't source a secret |
 
-### Immich (Photos)
+### Immich (Photos) — Decommissioned 2026-09-09
+
+Torn down due to lack of use; the 1TB drive backing its library was freed for
+other purposes. Kept below as a historical record of how it was built —
+namespace, chart, Postgres, ArgoCD apps, secrets, and the `photos` IngressRoute
+have all been removed from the cluster; the Talos `UserVolumeConfig` was
+removed from `talos-worker-1` and the drive detached (`scsi1`) from VM 201 on
+Proxmox. Drive itself was left with its XFS partition intact, not wiped.
 
 | | |
 |---|---|
-| Namespace | `photos` |
-| Status | Phases A (Immich backend) + B (storage cutover) complete 2026-08-08. Phase C (custom bracket-detection/ingest pipeline) and D (publish site) not started — see `PLAN.md` |
+| Namespace | `photos` (deleted) |
+| Status | Phases A (Immich backend) + B (storage cutover) complete 2026-08-08. Decommissioned 2026-09-09. |
 | URL | `photos.lab.ryantaylor.tech`, Authentik forward-auth (own login required past that — Immich has no trusted-header auto-login) |
 | Chart | `immich-charts` 0.12.0 (repo `https://immich-app.github.io/immich-charts`), app `v2.6.3` — components `immich-server`, `immich-machine-learning`, `immich-valkey` (Deployments), release name `immich` |
 | Postgres | Self-managed StatefulSet (`immich-postgres`, `photos-config`) — the chart doesn't bundle one. Image `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` (pinned to the same tag+digest as Immich's own `docker-compose.yml` for `v2.6.3`), needed for the VectorChord/pgvector extension CLIP search relies on. 10Gi on `local-path` (fast SSD) — not the photos drive. |
