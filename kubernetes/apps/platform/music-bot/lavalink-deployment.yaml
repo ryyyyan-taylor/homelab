@@ -106,6 +106,16 @@ spec:
                 secretKeyRef:
                   name: music-bot-secret
                   key: spotify-client-secret
+            - name: DEEZER_ARL
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: deezer-arl
+            - name: DEEZER_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: music-bot-secret
+                  key: deezer-master-decryption-key
           volumeMounts:
             - name: config
               mountPath: /opt/Lavalink/application.yml

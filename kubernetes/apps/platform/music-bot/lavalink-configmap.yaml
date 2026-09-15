@@ -38,12 +38,19 @@ data:
     plugins:
       lavasrc:
         providers:
+          # Deezer first: matches the real studio track by ISRC instead of
+          # gambling on a YouTube search result (music videos, lyric
+          # videos, covers, etc. all rank ahead of "official audio" on
+          # plenty of searches). ytsearch stays as the fallback for
+          # anything Deezer doesn't have.
+          - "dzisrc:%ISRC%"
+          - "dzsearch:%QUERY%"
           - "ytsearch:\"%ISRC%\""
           - "ytsearch:%QUERY%"
         sources:
           spotify: true
           applemusic: false
-          deezer: false
+          deezer: true
           yandexmusic: false
           flowerytts: false
           youtube: false
@@ -58,6 +65,18 @@ data:
           countryCode: "US"
           playlistLoadLimit: 6
           albumLoadLimit: 6
+        deezer:
+          # Both values are reverse-engineered, not distributed by LavaSrc
+          # or Deezer — see docs/inventory.md and the wiki Music Bot page
+          # for how to obtain them and why they live outside this repo's
+          # secret-filling automation.
+          masterDecryptionKey: "${DEEZER_MASTER_KEY}"
+          arl: "${DEEZER_ARL}"
+          # Free-tier quality only. Requesting FLAC/MP3_320/MP3_256/AAC_64
+          # requires a Premium account on the arl — deliberately not doing
+          # that here so a free/burner account is enough and there's no
+          # subscription tied to the account that ends up flagged.
+          formats: ["MP3_128", "MP3_64"]
         ytdlp:
           # Binary is (re-)fetched fresh on every pod start by the
           # fetch-ytdlp init container — see lavalink-deployment.yaml.
