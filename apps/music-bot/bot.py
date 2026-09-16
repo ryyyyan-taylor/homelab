@@ -333,16 +333,17 @@ async def _play_previous(player: wavelink.Player) -> bool:
 
 
 async def _resolve_one(meta: TrackMeta) -> wavelink.Playable | None:
-    try:
-        # source=None: query already has ytsearch:; wavelink would prepend ytmsearch: on top
-        results: wavelink.Search = await wavelink.Playable.search(
-            f"ytsearch:{meta.title} {meta.artist}", source=None
-        )
-    except wavelink.LavalinkLoadException:
-        return None
-    if not results or isinstance(results, wavelink.Playlist):
-        return None
-    return results[0]
+    query = f"{meta.title} {meta.artist}"
+    for prefix in ("dzsearch:", "ytsearch:"):
+        try:
+            # source=None: query already carries its search prefix; wavelink
+            # would otherwise prepend its own default (ytmsearch:) on top.
+            results: wavelink.Search = await wavelink.Playable.search(f"{prefix}{query}", source=None)
+        except wavelink.LavalinkLoadException:
+            continue
+        if results and not isinstance(results, wavelink.Playlist):
+            return results[0]
+    return None
 
 
 async def _fill_lookahead(player: wavelink.Player) -> None:
