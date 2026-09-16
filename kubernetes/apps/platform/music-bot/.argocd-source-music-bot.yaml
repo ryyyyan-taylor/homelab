@@ -1,3 +1,3 @@
 kustomize:
   images:
-  - ghcr.io/ryyyyan-taylor/homelab-music-bot:latest@sha256:8e201f11357cfe31c2ffc0e9b7f28d9c29904d3782cbd074e477b7a5a08fa6e8
+  - ghcr.io/ryyyyan-taylor/homelab-music-bot:latest@sha256:acbe4bfd75743787006389182f461cda30834d17f8aa42c8cf1fae9ee9349cb6
