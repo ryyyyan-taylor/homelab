@@ -4,6 +4,7 @@ import os
 import random
 import re
 import time
+import unicodedata
 from collections import deque
 from dataclasses import dataclass
 
@@ -35,6 +36,38 @@ LOOKAHEAD = 5
 class TrackMeta:
     title: str
     artist: str
+    isrc: str | None = None
+
+
+# Deezer's text search ranks remixes, covers, and karaoke tracks above the
+# real studio recording surprisingly often. Titles carrying these markers get
+# skipped in favor of the next candidate in the same result list. Word
+# boundaries matter here: plain substring matching on "cover" or "live" false
+# -positives on titles like "Undercover Martyn" or "Livewire".
+_ALT_VERSION_RE = re.compile(
+    r"\b(remix|cover|karaoke|tribute|instrumental|made famous|in the style of|"
+    r"sped up|slowed|nightcore|8d audio|live|acoustic|mashup|bootleg)\b",
+    re.IGNORECASE,
+)
+_FEAT_RE = re.compile(r"\b(feat|ft)\.?\s.*$", re.IGNORECASE)
+
+
+def _normalize(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = _FEAT_RE.sub("", text)
+    text = text.casefold().replace("&", "and")
+    return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+
+def _looks_like_alt_version(track: wavelink.Playable, meta: TrackMeta) -> bool:
+    if _ALT_VERSION_RE.search(track.title):
+        return True
+    expected_title = _normalize(meta.title)
+    if expected_title and expected_title not in _normalize(track.title):
+        return True
+    author, artist = _normalize(track.author), _normalize(meta.artist)
+    return bool(artist) and artist not in author and author not in artist
 
 
 class SpotifyClient:
@@ -76,7 +109,7 @@ class SpotifyClient:
             meta_url = f"https://api.spotify.com/v1/playlists/{spotify_id}"
             url: str | None = f"https://api.spotify.com/v1/playlists/{spotify_id}/tracks"
             params: dict[str, object] | None = {
-                "fields": "items(track(name,artists(name))),next",
+                "fields": "items(track(name,artists(name),external_ids)),next",
                 "limit": 100,
             }
             item_key, track_key = "items", "track"
@@ -103,7 +136,10 @@ class SpotifyClient:
                     continue
                 artists = track.get("artists") or []
                 artist = artists[0]["name"] if artists else "Unknown"
-                tracks.append(TrackMeta(title=track["name"], artist=artist))
+                # Albums come back as simplified track objects (no external_ids
+                # field at all), so isrc is None there — only playlists get one.
+                isrc = (track.get("external_ids") or {}).get("isrc")
+                tracks.append(TrackMeta(title=track["name"], artist=artist, isrc=isrc))
             url = data.get("next")
 
         return name, tracks
@@ -334,16 +370,32 @@ async def _play_previous(player: wavelink.Player) -> bool:
 
 async def _resolve_one(meta: TrackMeta) -> wavelink.Playable | None:
     query = f"{meta.title} {meta.artist}"
-    for prefix in ("dzsearch:", "ytsearch:"):
+    queries = [f"dzsearch:{query}", f"ytsearch:{query}"]
+    if meta.isrc:
+        # Exact match on the studio recording — skips the remix/cover
+        # ranking problem entirely, so trust it without filtering.
+        queries.insert(0, f"dzisrc:{meta.isrc}")
+
+    fallback: wavelink.Playable | None = None
+    for q in queries:
         try:
             # source=None: query already carries its search prefix; wavelink
             # would otherwise prepend its own default (ytmsearch:) on top.
-            results: wavelink.Search = await wavelink.Playable.search(f"{prefix}{query}", source=None)
+            results: wavelink.Search = await wavelink.Playable.search(q, source=None)
         except wavelink.LavalinkLoadException:
             continue
-        if results and not isinstance(results, wavelink.Playlist):
+        if not results or isinstance(results, wavelink.Playlist):
+            continue
+        if q.startswith("dzisrc:"):
             return results[0]
-    return None
+        if fallback is None:
+            fallback = results[0]
+        # Only scan the first few candidates — past that, a "clean" title is
+        # more likely a false negative on some other song than the real one.
+        for track in results[:5]:
+            if not _looks_like_alt_version(track, meta):
+                return track
+    return fallback
 
 
 async def _fill_lookahead(player: wavelink.Player) -> None:
