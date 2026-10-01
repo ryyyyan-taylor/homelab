@@ -20,6 +20,10 @@ all:
           ansible_host: 10.0.1.153
           ansible_user: root
           proxmox_vmid: 153
+        factorio:
+          ansible_host: 10.0.1.154
+          ansible_user: root
+          proxmox_vmid: 154
 
     infrastructure:
       hosts:

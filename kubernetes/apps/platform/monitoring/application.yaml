@@ -94,6 +94,10 @@ spec:
                     labels:
                       hostname: terraria
                       lxc_active: "false"
+                  - targets: ['10.0.1.154:9100']
+                    labels:
+                      hostname: factorio
+                      lxc_active: "false"
                   - targets: ['10.0.1.160:9100']
                     labels:
                       hostname: pihole

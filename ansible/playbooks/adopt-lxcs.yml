@@ -60,6 +60,17 @@
   roles:
     - corekeeper
 
+- name: Configure Factorio server
+  hosts: factorio
+  remote_user: root
+  ignore_unreachable: true
+  pre_tasks:
+    - name: Load game server secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../inventory/group_vars/game_servers/secrets.sops.yaml"
+  roles:
+    - factorio
+
 - name: Configure Ollama server
   hosts: ollama
   remote_user: root

@@ -4,3 +4,4 @@
 promtail_extra_log_paths:
   - /home/*/log/*.log
   - /home/*/serverfiles/logs/*.log
+  - /home/*/serverfiles/factorio-current.log

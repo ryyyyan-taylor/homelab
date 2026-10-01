@@ -46,7 +46,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | Pool | Type | Used by | Notes |
 |---|---|---|---|
 | `data` | LVM-thin (`pve` VG) | All LXCs | ~58 GB |
-| `ssd-1` | LVM-thin | Talos VM disks | Intel 2500 Pro SSD; ~219 GB |
+| `ssd-1` | LVM-thin | Talos VM disks; Factorio LXC rootfs (CT 154) | Intel 2500 Pro SSD; ~219 GB |
 | `ssd-2` | LVM-thin (not yet provisioned) | Future backups / redundancy | Intel 2500 Pro SSD; LVM VG must be created before adding as Proxmox storage |
 | `old-hdd` | Directory | — | Filesystem mount only; not a Proxmox storage pool |
 | photos drive (decommissioned) | Not a Proxmox storage pool | Formerly Immich photo library | WD1003FZEX 1TB HDD (`/dev/sdd`, `/dev/disk/by-id/ata-WDC_WD1003FZEX-00MK2A0_WD-WCC3FP7Y4VCR`). **Decommissioned 2026-09-09** — detached from `talos-worker-1` (`qm set 201 --delete scsi1`) after Immich was torn down; XFS partition left intact, not wiped. Free for reassignment. See Immich (Photos) section. Separate from `ssd-2` — that stays earmarked for backups/redundancy. |
@@ -76,6 +76,7 @@ IP convention: containers use `10.0.1.<CT ID>` (e.g. CT 152 → `10.0.1.152`).
 | 151 | corekeeper | `10.0.1.151` | Corekeeper game server | Internet-exposed (port TBD) |
 | 152 | minecraft | `10.0.1.152` | Minecraft server | Internet-exposed TCP 25565 |
 | 153 | terraria | `10.0.1.153` | Terraria server | Internet-exposed TCP 7777 |
+| 154 | factorio | `10.0.1.154` | Factorio server (Space Age) | Internet-exposed UDP 34197; LinuxGSM `fctrserver`; rootfs on `ssd-1`; 2 cores / 4 GB |
 | 160 | pi-hole | `10.0.1.160` | DNS + ad-blocking | Host networking on :53 |
 | 161 | network | `10.0.1.161` | Tailscale subnet router | Privileged LXC; advertises `10.0.1.0/24` |
 | 170 | ollama | `10.0.1.170` | Local LLM (Ollama, GPU) | Unprivileged; GTX 1650 bind-mounted from host (`/etc/pve/lxc/170.conf`, not in Terraform); `start_on_boot = false`; API on `:11434` (restricted via in-container `nftables` to k8s pod CIDR + node IPs + Tailscale + Aider desktop IP — see `ollama` Ansible role), models: `qwen2.5:3b`, `llama3.2:3b`, `nomic-embed-text`, `qwen2.5-coder:3b` |
@@ -343,12 +344,12 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 |---|---|
 | Version | 3.0.0 (binary) |
 | Managed by | Ansible `base` role |
-| Installed on | All LXCs: CT 151–153, 160–161 |
+| Installed on | All LXCs: CT 151–154, 160–161, 170 |
 | Config | `/etc/promtail/config.yml` (template: `ansible/roles/base/templates/promtail-config.yml.j2`) |
 | Loki target | `http://loki.lab.ryantaylor.tech/loki/api/v1/push` |
 | Labels | `job: lxc`, `host: <hostname>` (system logs); `job: game_server`, `host: <hostname>` (game logs) |
 | Log paths (all LXCs) | `/var/log/*.log`, `/var/log/syslog` |
-| Log paths (game servers) | `/home/*/log/*.log` (LGSM console logs), `/home/*/serverfiles/logs/*.log` (Minecraft game logs) — set via `group_vars/game_servers/vars.yml` |
+| Log paths (game servers) | `/home/*/log/*.log` (LGSM console logs), `/home/*/serverfiles/logs/*.log` (Minecraft game logs), `/home/*/serverfiles/factorio-current.log` (Factorio game log) — set via `group_vars/game_servers/vars.yml` |
 
 ### Homepage
 
@@ -567,6 +568,34 @@ pct exec 160 -- /usr/local/bin/pihole reloaddns
 | 151 | Corekeeper | TBD | Internet-exposed |
 | 152 | Minecraft | TCP 25565 | Internet-exposed |
 | 153 | Terraria | TCP 7777 | Internet-exposed |
+| 154 | Factorio | UDP 34197 | Internet-exposed; first UDP forward on the router |
+
+All four run **LinuxGSM**. The Ansible roles for 151–153 only template config
+(`Verify LGSM is installed` guard) — LinuxGSM was bootstrapped by hand there. The
+`factorio` role performs the install itself and is fully idempotent.
+
+| | |
+|---|---|
+| LGSM title | `fctrserver` |
+| LGSM user | `fctrserver` (`/home/fctrserver`) |
+| Instance config | `/home/fctrserver/lgsm/config-lgsm/fctrserver/fctrserver.cfg` |
+| Server settings | `/home/fctrserver/serverfiles/data/fctrserver.json` |
+| Mod list | `/home/fctrserver/serverfiles/mods/mod-list.json` |
+| Save | `/home/fctrserver/serverfiles/save1.zip` — currently the `10-2026_start` world, uploaded from `ryan-desktop` 2026-10-01. The filename is fixed by LGSM's `startparameters`, so the world's own name is not recoverable from the path; the install-generated throwaway world is kept alongside as `save1.zip.generated-20261001`. |
+| RCON | `34198` (password in `group_vars/game_servers/secrets.sops.yaml`) |
+| Expansion | Space Age (`space-age`, `quality`, `elevated-rails`) |
+| Visibility | `public: false` — unlisted, password-gated |
+| Start/stop | `su - fctrserver -c './fctrserver start'` (no systemd unit, `start_on_boot = false`) |
+
+- Known gotcha | **`servercfg="${selfname}.json"`.** LinuxGSM's `fctrserver/_default.cfg` passes `--server-settings ${serverfiles}/data/${selfname}.json`, so settings must live in `data/fctrserver.json`. Editing the shipped `server-settings.json` has **no effect**.
+- Note | **`fctrserver auto-install` does create the map**, contrary to what LinuxGSM's `_default.cfg` implies. LGSM v26.2.0 runs `factorio --create ${serverfiles}/save1` during install, so `save1.zip` exists before Ansible gets there. The role still carries a `creates`-guarded create-map task as insurance for a future LGSM version that drops this; on a normal build it is always skipped.
+- Note | **The Space Age mods ship in `serverfiles/data/`, not `serverfiles/mods/`.** `data/` holds `base`, `core`, `space-age`, `quality`, `elevated-rails` as part of the headless tarball, and they are enabled by default — the binary identifies itself as `2.0.77 (build 84539, linux64, headless, space-age)`. `mods/` starts empty and is only for third-party mods. This is why the install-time save is a full Space Age world even though Ansible templates `mod-list.json` afterwards. Verify with `grep "Loading mod" serverfiles/factorio-current.log` — a correct world loads `elevated-rails`, `quality`, and `space-age`.
+- Known gotcha | **`jq` and `bc` are hard requirements.** LGSM parses `fctrserver.json` with `jq` to resolve the server name and ports; without it `./fctrserver details` reports every field as `NOT SET` and the server starts unnamed. Neither is in the Debian 13 standard template, so the role installs both explicitly.
+- Known gotcha | **LGSM reports `lib32gcc-s1`, `lib32stdc++6`, and `netcat-openbsd` as missing dependencies on every start. This is cosmetic.** The lib32 packages are for 32-bit steamcmd titles and are irrelevant to Factorio's native 64-bit headless build — installing them would enable i386 multiarch for nothing. `netcat-openbsd` is a false positive: it *is* installed (`nc` resolves), LGSM's dep check just misreads it on trixie.
+- Known gotcha | **Space Age ownership is checked per-player on join.** Everyone connecting must own the DLC, and `require_user_verification: true` is what lets Factorio's auth service perform that check. "Unlisted" does **not** mean "no internet dependency" — friends connect by IP but still authenticate against factorio.com.
+- Known gotcha | **LinuxGSM's `stoponbackup` defaults to `on`.** A LinuxGSM backup cron would stop the running server mid-game, so none is configured; Factorio's own `autosave_interval` (5 min) / `autosave_slots` (10) cover in-session loss.
+- Known gotcha | **No game server has backups at any layer** — no `vzdump`, no PBS job, no snapshot schedule. World data lives only on the LXC rootfs. Tracked as PLAN.md Phase 4.
+- Known gotcha | **`-e base_manage_rt_user=false` is required on _every_ run, not just the first.** `roles/base` runs before `sssd` and its "Ensure rt home directory exists" task fails with `chown failed: failed to look up user rt`. On CT 154 there is no local `rt` user and the Authentik LDAP outpost that would supply one is broken (see `docs/known-issues.md`), so the task fails on every pass and the `factorio` play never runs. Confirmed 2026-09-30: a run without the flag fails at `base` with `failed=1`, and the Factorio tasks are never reached.
 
 ---
 

@@ -89,6 +89,9 @@ data:
         - Corekeeper:
             description: "CT 151"
             icon: si-steam
+        - Factorio:
+            description: "CT 154 — UDP 34197"
+            icon: factorio
 
   bookmarks.yaml: |
     - Homelab:

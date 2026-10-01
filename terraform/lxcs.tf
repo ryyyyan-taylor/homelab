@@ -202,6 +202,76 @@ resource "proxmox_virtual_environment_container" "terraria" {
   }
 }
 
+resource "proxmox_virtual_environment_container" "factorio" {
+  node_name     = "rt"
+  vm_id         = 154
+  unprivileged  = true
+  started       = true
+  start_on_boot = false # start on demand; auto-start would eat RAM reserved for Talos
+
+  cpu {
+    architecture = "amd64"
+    cores        = 2
+  }
+
+  memory {
+    dedicated = 4096
+    swap      = 512
+  }
+
+  console {
+    enabled   = true
+    tty_count = 2
+    type      = "tty"
+  }
+
+  initialization {
+    hostname = "factorio"
+
+    dns {
+      servers = ["10.0.1.160", "1.1.1.1"]
+      domain  = "lab.ryantaylor.tech"
+    }
+
+    ip_config {
+      ipv4 {
+        address = "10.0.1.154/24"
+        gateway = "10.0.1.1"
+      }
+      ipv6 {
+        address = "dhcp"
+      }
+    }
+  }
+
+  disk {
+    datastore_id = "ssd-1"
+    size         = 16
+  }
+
+  network_interface {
+    name     = "eth0"
+    bridge   = "vmbr0"
+    firewall = true
+  }
+
+  features {
+    nesting = true
+  }
+
+  operating_system {
+    template_file_id = "local:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst"
+    type             = "debian"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      started,
+      operating_system,
+    ]
+  }
+}
+
 resource "proxmox_virtual_environment_container" "pihole" {
   node_name     = "rt"
   vm_id         = 160

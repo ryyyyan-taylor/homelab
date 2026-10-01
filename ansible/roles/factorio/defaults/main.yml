@@ -1,0 +1,22 @@
+---
+# LGSM instance settings
+factorio_user: fctrserver
+factorio_branch: stable
+factorio_port: 34197
+factorio_rcon_port: 34198
+
+# Server settings (serverfiles/data/fctrserver.json)
+factorio_name: "The Boiz Factory"
+factorio_description: "Homelab Factorio server — Space Age"
+factorio_max_players: 0
+factorio_autosave_interval: 5
+factorio_autosave_slots: 10
+factorio_require_user_verification: true
+
+# Space Age DLC — the save must be generated with these enabled or the
+# planets never exist. Flipping this later requires a new world.
+factorio_space_age: true
+
+# Sensitive vars — defined in group_vars/game_servers/secrets.sops.yaml
+# factorio_rcon_password:
+# factorio_game_password:

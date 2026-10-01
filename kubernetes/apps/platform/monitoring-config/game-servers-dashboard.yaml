@@ -51,7 +51,7 @@ data:
           "type": "stat",
           "title": "Corekeeper — CPU",
           "id": 2,
-          "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 0, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -91,7 +91,7 @@ data:
           "type": "stat",
           "title": "Minecraft — CPU",
           "id": 3,
-          "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 3, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -131,7 +131,7 @@ data:
           "type": "stat",
           "title": "Terraria — CPU",
           "id": 4,
-          "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 6, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -169,9 +169,49 @@ data:
         },
         {
           "type": "stat",
+          "title": "Factorio — CPU",
+          "id": 22,
+          "gridPos": { "x": 9, "y": 1, "w": 3, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\",hostname=\"factorio\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
           "title": "Corekeeper — RAM",
           "id": 5,
-          "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 12, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -211,7 +251,7 @@ data:
           "type": "stat",
           "title": "Minecraft — RAM",
           "id": 6,
-          "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 15, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -251,12 +291,52 @@ data:
           "type": "stat",
           "title": "Terraria — RAM",
           "id": 7,
-          "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+          "gridPos": { "x": 18, "y": 1, "w": 3, "h": 4 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
               "expr": "(1 - node_memory_MemAvailable_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\"} / node_memory_MemTotal_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Factorio — RAM",
+          "id": 23,
+          "gridPos": { "x": 21, "y": 1, "w": 3, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_memory_MemAvailable_bytes{hostname=\"factorio\",job=\"lxc-node-exporter\"} / node_memory_MemTotal_bytes{hostname=\"factorio\",job=\"lxc-node-exporter\"}) * 100",
               "legendFormat": "",
               "refId": "A"
             }
@@ -303,7 +383,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
-              "expr": "100 - (avg by (hostname) (irate(node_cpu_seconds_total{mode=\"idle\",hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}[5m])) * 100)",
+              "expr": "100 - (avg by (hostname) (irate(node_cpu_seconds_total{mode=\"idle\",hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\"}[5m])) * 100)",
               "legendFormat": "{{hostname}}",
               "refId": "A"
             }
@@ -337,13 +417,13 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
-              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"} - node_memory_MemAvailable_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}",
+              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\"} - node_memory_MemAvailable_bytes{hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\"}",
               "legendFormat": "{{hostname}} used",
               "refId": "A"
             },
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
-              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\"}",
+              "expr": "node_memory_MemTotal_bytes{hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\"}",
               "legendFormat": "{{hostname}} total",
               "refId": "B"
             }
@@ -390,7 +470,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
-              "expr": "sum by (hostname) (irate(node_network_receive_bytes_total{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
+              "expr": "sum by (hostname) (irate(node_network_receive_bytes_total{hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
               "legendFormat": "{{hostname}}",
               "refId": "A"
             }
@@ -422,7 +502,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
-              "expr": "sum by (hostname) (irate(node_network_transmit_bytes_total{hostname=~\"corekeeper|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
+              "expr": "sum by (hostname) (irate(node_network_transmit_bytes_total{hostname=~\"corekeeper|factorio|minecraft|terraria\",job=\"lxc-node-exporter\",device!=\"lo\"}[5m]))",
               "legendFormat": "{{hostname}}",
               "refId": "A"
             }
@@ -456,7 +536,7 @@ data:
           "type": "gauge",
           "title": "Corekeeper — Disk ( / )",
           "id": 15,
-          "gridPos": { "x": 0, "y": 24, "w": 8, "h": 6 },
+          "gridPos": { "x": 0, "y": 24, "w": 6, "h": 6 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -495,7 +575,7 @@ data:
           "type": "gauge",
           "title": "Minecraft — Disk ( / )",
           "id": 16,
-          "gridPos": { "x": 8, "y": 24, "w": 8, "h": 6 },
+          "gridPos": { "x": 6, "y": 24, "w": 6, "h": 6 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
@@ -534,12 +614,51 @@ data:
           "type": "gauge",
           "title": "Terraria — Disk ( / )",
           "id": 17,
-          "gridPos": { "x": 16, "y": 24, "w": 8, "h": 6 },
+          "gridPos": { "x": 12, "y": 24, "w": 6, "h": 6 },
           "datasource": { "type": "prometheus", "uid": "${prom}" },
           "targets": [
             {
               "datasource": { "type": "prometheus", "uid": "${prom}" },
               "expr": "(1 - node_filesystem_avail_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{hostname=\"terraria\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 90 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "gauge",
+          "title": "Factorio — Disk ( / )",
+          "id": 24,
+          "gridPos": { "x": 18, "y": 24, "w": 6, "h": 6 },
+          "datasource": { "type": "prometheus", "uid": "${prom}" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${prom}" },
+              "expr": "(1 - node_filesystem_avail_bytes{hostname=\"factorio\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{hostname=\"factorio\",job=\"lxc-node-exporter\",mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
               "legendFormat": "",
               "refId": "A"
             }
@@ -580,7 +699,7 @@ data:
           "type": "logs",
           "title": "Minecraft Logs",
           "id": 19,
-          "gridPos": { "x": 0, "y": 31, "w": 8, "h": 12 },
+          "gridPos": { "x": 0, "y": 31, "w": 6, "h": 12 },
           "datasource": { "type": "loki", "uid": "${loki}" },
           "targets": [
             {
@@ -605,7 +724,7 @@ data:
           "type": "logs",
           "title": "Terraria Logs",
           "id": 20,
-          "gridPos": { "x": 8, "y": 31, "w": 8, "h": 12 },
+          "gridPos": { "x": 6, "y": 31, "w": 6, "h": 12 },
           "datasource": { "type": "loki", "uid": "${loki}" },
           "targets": [
             {
@@ -630,12 +749,37 @@ data:
           "type": "logs",
           "title": "Corekeeper Logs",
           "id": 21,
-          "gridPos": { "x": 16, "y": 31, "w": 8, "h": 12 },
+          "gridPos": { "x": 12, "y": 31, "w": 6, "h": 12 },
           "datasource": { "type": "loki", "uid": "${loki}" },
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "${loki}" },
               "expr": "{job=\"game_server\", host=\"corekeeper\"}",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "dedupStrategy": "none",
+            "sortOrder": "Descending",
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Factorio Logs",
+          "id": 25,
+          "gridPos": { "x": 18, "y": 31, "w": 6, "h": 12 },
+          "datasource": { "type": "loki", "uid": "${loki}" },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${loki}" },
+              "expr": "{job=\"game_server\", host=\"factorio\"}",
               "legendFormat": "",
               "refId": "A"
             }

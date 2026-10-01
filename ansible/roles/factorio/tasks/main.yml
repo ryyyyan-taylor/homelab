@@ -1,0 +1,119 @@
+---
+- name: Install LGSM dependencies
+  ansible.builtin.apt:
+    name:
+      # jq is not optional — LGSM parses fctrserver.json with it to resolve the
+      # server name/port, and without it every `details` field reads "NOT SET".
+      # LGSM also asks for lib32gcc-s1 and lib32stdc++6. Those are for 32-bit
+      # steamcmd titles; Factorio's headless build is native 64-bit, and
+      # installing them would enable i386 multiarch for nothing.
+      - bc
+      - binutils
+      - bsdmainutils
+      - ca-certificates
+      - curl
+      - distro-info
+      - file
+      - jq
+      - netcat-openbsd
+      - pigz
+      - python3
+      - tmux
+      - unzip
+      - uuid-runtime
+      - xz-utils
+    state: present
+    update_cache: true
+
+- name: Create LGSM user
+  ansible.builtin.user:
+    name: "{{ factorio_user }}"
+    home: "/home/{{ factorio_user }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Download linuxgsm.sh
+  ansible.builtin.get_url:
+    url: https://linuxgsm.sh
+    dest: "/home/{{ factorio_user }}/linuxgsm.sh"
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0755"
+
+- name: Create fctrserver instance script
+  ansible.builtin.command: ./linuxgsm.sh fctrserver
+  args:
+    chdir: "/home/{{ factorio_user }}"
+    creates: "/home/{{ factorio_user }}/fctrserver"
+  become: true
+  become_user: "{{ factorio_user }}"
+
+- name: Install Factorio server files
+  ansible.builtin.command: ./fctrserver auto-install
+  args:
+    chdir: "/home/{{ factorio_user }}"
+    creates: "/home/{{ factorio_user }}/serverfiles/bin/x64/factorio"
+  become: true
+  become_user: "{{ factorio_user }}"
+
+- name: Template LGSM common config
+  ansible.builtin.template:
+    src: common.cfg.j2
+    dest: "/home/{{ factorio_user }}/lgsm/config-lgsm/fctrserver/common.cfg"
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0600"
+
+- name: Template LGSM instance config
+  ansible.builtin.template:
+    src: fctrserver.cfg.j2
+    dest: "/home/{{ factorio_user }}/lgsm/config-lgsm/fctrserver/fctrserver.cfg"
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0600"
+  no_log: true
+
+# LGSM passes --server-settings ${serverfiles}/data/${selfname}.json, so the
+# shipped server-settings.json is never read.
+- name: Template server settings
+  ansible.builtin.template:
+    src: fctrserver.json.j2
+    dest: "/home/{{ factorio_user }}/serverfiles/data/fctrserver.json"
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0600"
+  no_log: true
+
+# auto-install does not reliably create mods/, and template won't make parents.
+- name: Ensure mods directory exists
+  ansible.builtin.file:
+    path: "/home/{{ factorio_user }}/serverfiles/mods"
+    state: directory
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0755"
+
+- name: Template mod list
+  ansible.builtin.template:
+    src: mod-list.json.j2
+    dest: "/home/{{ factorio_user }}/serverfiles/mods/mod-list.json"
+    owner: "{{ factorio_user }}"
+    group: "{{ factorio_user }}"
+    mode: "0600"
+
+# auto-install does not generate a map, and startparameters expects
+# ${serverfiles}/save1.zip. Both paths are absolute on purpose: a bare
+# --create name lands in the binary's own saves dir, not cwd, which would
+# leave the creates: guard permanently unmatched and the server unstartable.
+# --mod-directory likewise, since a save created without the DLC loaded has
+# no planets and can only be fixed by regenerating the world.
+- name: Create initial save
+  ansible.builtin.command: >-
+    bin/x64/factorio
+    --create /home/{{ factorio_user }}/serverfiles/save1.zip
+    --mod-directory /home/{{ factorio_user }}/serverfiles/mods
+  args:
+    chdir: "/home/{{ factorio_user }}/serverfiles"
+    creates: "/home/{{ factorio_user }}/serverfiles/save1.zip"
+  become: true
+  become_user: "{{ factorio_user }}"
