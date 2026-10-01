@@ -1,7 +1,0 @@
----
-- name: Restart factorio server
-  ansible.builtin.command: ./fctrserver restart
-  args:
-    chdir: "/home/{{ factorio_user }}"
-  become: true
-  become_user: "{{ factorio_user }}"

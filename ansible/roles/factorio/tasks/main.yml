@@ -101,19 +101,6 @@
     group: "{{ factorio_user }}"
     mode: "0600"
 
-# Third-party mods (even the official-content-adjacent kind) flip Factorio's
-# achievement tracking to the separate achievements-modded.dat file, which
-# never syncs to Steam — only base + the Space Age DLC mods are kept enabled.
-- name: Remove third-party mod files
-  ansible.builtin.file:
-    path: "/home/{{ factorio_user }}/serverfiles/mods/{{ item }}"
-    state: absent
-  loop:
-    - extensible-map-overlay-framework_0.1.0.zip
-    - doodle_0.1.0.zip
-    - Todo-List_19.15.2.zip
-  notify: Restart factorio server
-
 # auto-install does not generate a map, and startparameters expects
 # ${serverfiles}/save1.zip. Both paths are absolute on purpose: a bare
 # --create name lands in the binary's own saves dir, not cwd, which would
