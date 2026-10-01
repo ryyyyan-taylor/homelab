@@ -337,6 +337,8 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Type | DaemonSet — ships cluster pod logs to Loki |
 | Loki target | `http://loki.loki.svc.cluster.local:3100/loki/api/v1/push` |
 | Scrapes | `/var/log/pods/` on each node (standard kubelet log path) |
+| Resources | requests: 25m cpu / 24Mi mem, limits: 200m cpu / 160Mi mem |
+| Known gotcha | Intermittent `context deadline exceeded` pushing to Loki (Loki is CPU-constrained at 50m request) causes promtail to buffer retries in memory; at the old 96Mi limit this slowly OOMKilled the pod every ~3 days. Bumped to 160Mi (2026-10-01) |
 
 ### Promtail (LXC)
 
