@@ -101,15 +101,13 @@
     group: "{{ factorio_user }}"
     mode: "0600"
 
-# Mod portal downloads require an authenticated factorio.com account, so the
-# zips are fetched by hand and checked in here rather than pulled at runtime.
-- name: Copy mod files
-  ansible.builtin.copy:
-    src: "mods/{{ item }}"
-    dest: "/home/{{ factorio_user }}/serverfiles/mods/{{ item }}"
-    owner: "{{ factorio_user }}"
-    group: "{{ factorio_user }}"
-    mode: "0644"
+# Third-party mods (even the official-content-adjacent kind) flip Factorio's
+# achievement tracking to the separate achievements-modded.dat file, which
+# never syncs to Steam — only base + the Space Age DLC mods are kept enabled.
+- name: Remove third-party mod files
+  ansible.builtin.file:
+    path: "/home/{{ factorio_user }}/serverfiles/mods/{{ item }}"
+    state: absent
   loop:
     - extensible-map-overlay-framework_0.1.0.zip
     - doodle_0.1.0.zip
