@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spotify-tool
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "28"
+    argocd-image-updater.argoproj.io/image-list: |
+      web=ghcr.io/ryyyyan-taylor/homelab-spotify-tool-web:latest,
+      downloader=ghcr.io/ryyyyan-taylor/homelab-spotify-tool-downloader:latest
+    argocd-image-updater.argoproj.io/web.update-strategy: digest
+    argocd-image-updater.argoproj.io/web.pull-secret: pullsecret:argocd/ghcr-credentials
+    argocd-image-updater.argoproj.io/downloader.update-strategy: digest
+    argocd-image-updater.argoproj.io/downloader.pull-secret: pullsecret:argocd/ghcr-credentials
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/ghcr-credentials
+    argocd-image-updater.argoproj.io/git-branch: main
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ryyyyan-taylor/homelab.git
+    targetRevision: HEAD
+    path: kubernetes/apps/platform/spotify-tool
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spotify-tool
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

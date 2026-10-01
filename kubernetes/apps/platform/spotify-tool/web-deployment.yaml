@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: spotify-tool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spotify-tool-web
+  template:
+    metadata:
+      labels:
+        app: spotify-tool-web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: ghcr.io/ryyyyan-taylor/homelab-spotify-tool-web:latest
+          ports:
+            - containerPort: 3010
+          env:
+            - name: PORT
+              value: "3010"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: NODE_ENV
+              value: production
+            - name: DB_PATH
+              value: /app/data/spotify-client.db
+            - name: DOWNLOADER_URL
+              value: http://downloader:8000
+            - name: SPOTIFY_REDIRECT_URI
+              value: https://spotify.lab.ryantaylor.tech/api/auth/callback
+            - name: FRONTEND_URL
+              value: https://spotify.lab.ryantaylor.tech
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: spotify-tool-secret
+                  key: spotify-client-id
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spotify-tool-secret
+                  key: spotify-client-secret
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spotify-tool-secret
+                  key: session-secret
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3010
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: spotify-tool-web-data

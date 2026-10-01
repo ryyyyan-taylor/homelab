@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-spotify-gray-200;
+  }
+
+  body {
+    @apply bg-spotify-black text-spotify-white antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-3 h-3;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-spotify-gray-400;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-spotify-gray-200 rounded-lg;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-spotify-gray-100;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-spotify-green text-white font-semibold py-2 px-6 rounded-full
+           hover:scale-105 active:scale-95 transition-transform duration-150;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-spotify-white font-semibold py-2 px-6 rounded-full
+           border border-spotify-gray-100 hover:border-white hover:scale-105
+           active:scale-95 transition-all duration-150;
+  }
+
+  .input-field {
+    @apply bg-spotify-gray-400 text-spotify-white border border-spotify-gray-200
+           rounded-md px-4 py-2 focus:outline-none focus:border-spotify-white
+           placeholder-spotify-gray-100;
+  }
+
+  .card {
+    @apply bg-spotify-gray-300 rounded-lg p-4 hover:bg-spotify-gray-200
+           transition-colors duration-200;
+  }
+}

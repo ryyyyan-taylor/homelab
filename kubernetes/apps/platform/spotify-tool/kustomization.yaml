@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: spotify-tool
+resources:
+  - web-pvc.yaml
+  - web-deployment.yaml
+  - web-service.yaml
+  - downloader-deployment.yaml
+  - downloader-service.yaml
+  - ingressroute.yaml

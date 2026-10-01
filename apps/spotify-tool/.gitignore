@@ -1,0 +1,7 @@
+web/frontend/node_modules/
+web/frontend/dist/
+web/backend/node_modules/
+web/backend/dist/
+web/backend/data/
+web/backend/.env
+downloader/__pycache__/

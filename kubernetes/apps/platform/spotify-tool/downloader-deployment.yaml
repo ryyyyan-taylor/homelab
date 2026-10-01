@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: downloader
+  namespace: spotify-tool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spotify-tool-downloader
+  template:
+    metadata:
+      labels:
+        app: spotify-tool-downloader
+    spec:
+      containers:
+        - name: downloader
+          image: ghcr.io/ryyyyan-taylor/homelab-spotify-tool-downloader:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi

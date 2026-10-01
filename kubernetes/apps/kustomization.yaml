@@ -34,3 +34,5 @@ resources:
   - platform/music-bot-config/application.yaml
   - platform/music-bot/application.yaml
   - platform/descheduler/application.yaml
+  - platform/spotify-tool-config/application.yaml
+  - platform/spotify-tool/application.yaml
