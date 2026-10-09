@@ -187,6 +187,16 @@ class MusicBot(discord.Client):
         await _clear_controls(player)
         await player.disconnect()
 
+    async def on_wavelink_websocket_closed(self, payload: wavelink.WebsocketClosedEventPayload) -> None:
+        # wavelink destroys the player internally on a remote 4014 close
+        # without dispatching any event we hook, so our messages are never
+        # cleaned up unless we catch it here.
+        player = payload.player
+        if player is None or payload.code != wavelink.DiscordVoiceCloseType.DISCONNECTED or not payload.by_remote:
+            return
+        await _clear_now_playing(player)
+        await _clear_controls(player)
+
 
 bot = MusicBot()
 
@@ -328,13 +338,13 @@ async def _update_now_playing(player: wavelink.Player, *, interaction: discord.I
     view = NowPlayingView(player)
 
     if interaction is not None:
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(content=None, embed=embed, view=view)
         player.now_playing_message = interaction.message
         return
 
     if message is not None:
         try:
-            await message.edit(embed=embed, view=view)
+            await message.edit(content=None, embed=embed, view=view)
             return
         except discord.HTTPException:
             pass
@@ -350,11 +360,11 @@ async def _clear_now_playing(player: wavelink.Player, text: str | None = None) -
     try:
         if text is None:
             await message.delete()
+            player.now_playing_message = None
         else:
             await message.edit(content=text, embed=None, view=None)
     except discord.HTTPException:
         pass
-    player.now_playing_message = None
 
 
 async def _play_previous(player: wavelink.Player) -> bool:
