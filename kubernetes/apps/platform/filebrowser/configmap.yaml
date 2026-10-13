@@ -5,8 +5,9 @@ metadata:
   namespace: filebrowser
 data:
   config.yaml: |
-    server:
+    http:
       port: 80
+    server:
       database:
         path: /home/filebrowser/data/database.sqlite
       cacheDir: /home/filebrowser/data/tmp
