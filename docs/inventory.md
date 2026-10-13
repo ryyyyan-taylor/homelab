@@ -462,7 +462,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | | |
 |---|---|
 | Namespace | `filebrowser` |
-| Image | `ghcr.io/gtsteffaniak/filebrowser:v2.0.0-stable` (FileBrowser Quantum — the maintained fork; the original `filebrowser/filebrowser` was archived 2026-09-01, no further releases/security patches) |
+| Image | `ghcr.io/gtsteffaniak/filebrowser:2.0.0-stable` (FileBrowser Quantum — the maintained fork; the original `filebrowser/filebrowser` was archived 2026-09-01, no further releases/security patches) |
 | URL | `https://files.lab.ryantaylor.tech` |
 | Purpose | Quick drag-and-drop file upload/download with folder support — moving photos/videos between devices on the LAN |
 | Auth | `noauth` mode (no login) — intentionally LAN/Tailscale-only, no Authentik forward-auth, no internet exposure |

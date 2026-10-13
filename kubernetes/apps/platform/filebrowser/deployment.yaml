@@ -27,7 +27,7 @@ spec:
               mountPath: /data
       containers:
         - name: filebrowser
-          image: ghcr.io/gtsteffaniak/filebrowser:v2.0.0-stable
+          image: ghcr.io/gtsteffaniak/filebrowser:2.0.0-stable
           ports:
             - containerPort: 80
           volumeMounts:
