@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: filebrowser
+  namespace: filebrowser
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`files.lab.ryantaylor.tech`)
+      kind: Rule
+      services:
+        - name: filebrowser
+          port: 80
+  tls: {}

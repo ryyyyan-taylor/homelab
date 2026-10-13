@@ -159,6 +159,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 26 | descheduler | `kube-system` | Rebalances pods across nodes on a schedule (Helm) |
 | 27 | spotify-tool-config | `spotify-tool` | SOPS secrets (Spotify creds, session secret) |
 | 28 | spotify-tool | `spotify-tool` | Spotify playlist/library manager (web + downloader) at `spotify.lab.ryantaylor.tech` |
+| 29 | filebrowser | `filebrowser` | Quick file upload/download web UI, LAN-only, no auth |
 
 ### cert-manager
 
@@ -455,6 +456,18 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Spotify app | Reuses the same grandfathered pre-2024 Spotify app as `music-bot` (see that section above) rather than registering a new one. Needs `https://spotify.lab.ryantaylor.tech/api/auth/callback` added as a redirect URI on that app in the Spotify Developer Dashboard (manual, one-time) |
 | Resources (web) | req `cpu 25m / mem 64Mi`, lim `cpu 300m / mem 256Mi` — provisional |
 | Resources (downloader) | req `cpu 100m / mem 128Mi`, lim `cpu 1 / mem 512Mi` — provisional, sized for ffmpeg transcoding rather than idle |
+
+### Filebrowser
+
+| | |
+|---|---|
+| Namespace | `filebrowser` |
+| Image | `ghcr.io/gtsteffaniak/filebrowser:v2.0.0-stable` (FileBrowser Quantum — the maintained fork; the original `filebrowser/filebrowser` was archived 2026-09-01, no further releases/security patches) |
+| URL | `https://files.lab.ryantaylor.tech` |
+| Purpose | Quick drag-and-drop file upload/download with folder support — moving photos/videos between devices on the LAN |
+| Auth | `noauth` mode (no login) — intentionally LAN/Tailscale-only, no Authentik forward-auth, no internet exposure |
+| Storage | 5Gi PVC on `local-path`, mounted at `/home/filebrowser/data`. Files live under `data/files`, SQLite DB and cache alongside it |
+| Config | `filebrowser-config` ConfigMap holds `config.yaml`; an initContainer copies it into the PVC (`/home/filebrowser/data/config.yaml`) and creates the `files`/`tmp` subdirectories on each pod start, since Quantum requires the source path to already exist and reads its config from a fixed path inside the data volume |
 
 ### Immich (Photos) — Decommissioned 2026-09-09
 
