@@ -468,6 +468,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Auth | `noauth` mode (no login) — intentionally LAN/Tailscale-only, no Authentik forward-auth, no internet exposure |
 | Storage | 5Gi PVC on `local-path`, mounted at `/home/filebrowser/data`. Files live under `data/files`, SQLite DB and cache alongside it |
 | Config | `filebrowser-config` ConfigMap holds `config.yaml`; an initContainer copies it into the PVC (`/home/filebrowser/data/config.yaml`) and creates the `files`/`tmp` subdirectories on each pod start, since Quantum requires the source path to already exist and reads its config from a fixed path inside the data volume |
+| Gotcha | The configured source **name** is `home`, not `files` — naming it `files` collides with the app's fixed `/files` route prefix, so the single-source auto-redirect lands on an unchanged URL, the router treats it as a no-op, and `state.req.source` never populates client-side, breaking uploads with "no source provided". A ConfigMap-only change (like this rename) doesn't change the Deployment's pod template, so `kubectl delete pod -n filebrowser -l app=filebrowser` is needed after editing `config.yaml` for it to take effect |
 
 ### Immich (Photos) — Decommissioned 2026-09-09
 
