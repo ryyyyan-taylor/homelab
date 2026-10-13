@@ -36,3 +36,4 @@ resources:
   - platform/descheduler/application.yaml
   - platform/spotify-tool-config/application.yaml
   - platform/spotify-tool/application.yaml
+  - platform/filebrowser/application.yaml
