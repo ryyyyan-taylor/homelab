@@ -41,7 +41,7 @@ data:
 
     + FPing
 
-    binary = /usr/bin/fping
+    binary = /usr/sbin/fping
     step = 20
     pings = 20
     offset = 0%
