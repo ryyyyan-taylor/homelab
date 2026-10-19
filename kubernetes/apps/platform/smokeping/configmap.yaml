@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smokeping-config
+  namespace: smokeping
+data:
+  Targets: |
+    *** Targets ***
+
+    probe = FPing
+
+    menu = Top
+    title = Network Latency Grapher
+    remark = Continuous loss/latency monitoring for the LAN and upstream internet path.
+
+    + LAN
+    menu = LAN
+    title = Local Network
+
+    ++ Router
+    menu = Router
+    title = Home Router / Gateway (10.0.1.1)
+    host = 10.0.1.1
+
+    + Internet
+    menu = Internet
+    title = Upstream / ISP
+
+    ++ Cloudflare
+    menu = Cloudflare
+    title = Cloudflare DNS (1.1.1.1)
+    host = 1.1.1.1
+
+    ++ Google
+    menu = Google
+    title = Google DNS (8.8.8.8)
+    host = 8.8.8.8
+
+  Probes: |
+    *** Probes ***
+
+    + FPing
+
+    binary = /usr/bin/fping
+    step = 20
+    pings = 20
+    offset = 0%

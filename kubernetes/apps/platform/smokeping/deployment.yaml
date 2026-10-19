@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smokeping
+  namespace: smokeping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smokeping
+  template:
+    metadata:
+      labels:
+        app: smokeping
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: smokeping
+          image: lscr.io/linuxserver/smokeping:2.9.0-r0-ls186
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: America/Denver
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: config-overrides
+              mountPath: /config/Targets
+              subPath: Targets
+            - name: config-overrides
+              mountPath: /config/Probes
+              subPath: Probes
+          readinessProbe:
+            httpGet:
+              path: /smokeping/smokeping.cgi
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /smokeping/smokeping.cgi
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: smokeping-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: smokeping-data
+        - name: config-overrides
+          configMap:
+            name: smokeping-config

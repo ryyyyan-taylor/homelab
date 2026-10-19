@@ -160,6 +160,7 @@ All services below are deployed via ArgoCD (app-of-apps pattern). Source of trut
 | 27 | spotify-tool-config | `spotify-tool` | SOPS secrets (Spotify creds, session secret) |
 | 28 | spotify-tool | `spotify-tool` | Spotify playlist/library manager (web + downloader) at `spotify.lab.ryantaylor.tech` |
 | 29 | filebrowser | `filebrowser` | Quick file upload/download web UI, LAN-only, no auth |
+| 30 | smokeping | `smokeping` | Continuous fine-grained LAN/WAN loss & latency monitoring |
 
 ### cert-manager
 
@@ -380,6 +381,21 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Auth | Built-in (set admin account on first visit) |
 | Storage | 2Gi PVC on `local-path` at `/app/data` (SQLite) |
 | Notes | Auth is Uptime Kuma's own login — no Authentik forward-auth. Status pages are publicly accessible. |
+
+### Smokeping
+
+| | |
+|---|---|
+| Version | 2.9.0-r0-ls186 |
+| Namespace | `smokeping` |
+| Image | `lscr.io/linuxserver/smokeping:2.9.0-r0-ls186` |
+| URL | `https://smokeping.lab.ryantaylor.tech` |
+| Auth | Authentik forward-auth (app has no built-in login) |
+| Storage | 256Mi PVC at `/config` (config files), 1Gi PVC at `/data` (RRD + graphs) |
+| Targets | Router/gateway `10.0.1.1`, Cloudflare `1.1.1.1`, Google `8.8.8.8` — via `smokeping-config` ConfigMap, subPath-mounted over `/config/Targets` and `/config/Probes` |
+| Probe config | FPing probe, `step = 20`s / `pings = 20` (~1 ping/sec/target) instead of the 300s default — built to catch short (~10s) frequent drops that coarser periodic health checks miss |
+| Purpose | Why this exists alongside Uptime Kuma: Uptime Kuma polls per-minute at best, too coarse for frequent sub-15s drops (e.g. Discord call dropouts). Smokeping's continuous fine-grained fping + per-target breakdown (LAN gateway vs. external) localizes whether a drop is local-network or upstream/ISP. |
+| Next step (not yet built) | ntfy alert on sustained loss — deferred; currently log/graph only via the web UI |
 
 ### ArgoCD Image Updater
 
