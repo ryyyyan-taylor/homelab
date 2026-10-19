@@ -390,7 +390,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Namespace | `smokeping` |
 | Image | `lscr.io/linuxserver/smokeping:2.9.0-r0-ls186` |
 | URL | `https://smokeping.lab.ryantaylor.tech` |
-| Auth | Authentik forward-auth (app has no built-in login) |
+| Auth | None — LAN-only. Authentik is currently scaled to 0 cluster-wide (internal-only network, not gatekeeping anything; see `authentik/application.yaml`), so this doesn't reference `authentik-forwardauth` like the admin UIs nominally do |
 | Storage | 256Mi PVC at `/config` (config files), 1Gi PVC at `/data` (RRD + graphs) |
 | Targets | Router/gateway `10.0.1.1`, Cloudflare `1.1.1.1`, Google `8.8.8.8` — via `smokeping-config` ConfigMap, subPath-mounted over `/config/Targets` and `/config/Probes` |
 | Probe config | FPing probe, `step = 20`s / `pings = 20` (~1 ping/sec/target) instead of the 300s default — built to catch short (~10s) frequent drops that coarser periodic health checks miss |
