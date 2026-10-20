@@ -393,7 +393,7 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | Auth | None — LAN-only. Authentik is currently scaled to 0 cluster-wide (internal-only network, not gatekeeping anything; see `authentik/application.yaml`), so this doesn't reference `authentik-forwardauth` like the admin UIs nominally do |
 | Storage | 256Mi PVC at `/config` (config files), 1Gi PVC at `/data` (RRD + graphs) |
 | Targets | Router/gateway `10.0.1.1`, Cloudflare `1.1.1.1`, Google `8.8.8.8` — via `smokeping-config` ConfigMap, subPath-mounted over `/config/Targets` and `/config/Probes` |
-| Probe config | FPing probe, `step = 20`s / `pings = 20` (~1 ping/sec/target) instead of the 300s default — built to catch short (~10s) frequent drops that coarser periodic health checks miss |
+| Probe config | FPing probe, `step = 10`s / `pings = 10` at `hostinterval = 0.5` (2 pings/sec/target, ~5s per round) instead of the 300s default — built to catch short (~10s) frequent drops that coarser periodic health checks miss |
 | Purpose | Why this exists alongside Uptime Kuma: Uptime Kuma polls per-minute at best, too coarse for frequent sub-15s drops (e.g. Discord call dropouts). Smokeping's continuous fine-grained fping + per-target breakdown (LAN gateway vs. external) localizes whether a drop is local-network or upstream/ISP. |
 | Next step (not yet built) | ntfy alert on sustained loss — deferred; currently log/graph only via the web UI |
 

@@ -42,6 +42,7 @@ data:
     + FPing
 
     binary = /usr/sbin/fping
-    step = 20
-    pings = 20
+    step = 10
+    pings = 10
+    hostinterval = 0.5
     offset = 0%
