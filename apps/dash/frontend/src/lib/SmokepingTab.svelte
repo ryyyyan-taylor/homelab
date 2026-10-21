@@ -45,6 +45,8 @@
   <label>
     Range
     <select bind:value={hours} onchange={load}>
+      <option value={1}>1 hour</option>
+      <option value={2}>2 hours</option>
       <option value={6}>6 hours</option>
       <option value={24}>24 hours</option>
       <option value={72}>3 days</option>
