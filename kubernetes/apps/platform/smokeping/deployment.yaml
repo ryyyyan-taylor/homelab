@@ -57,7 +57,34 @@ spec:
             limits:
               cpu: 250m
               memory: 192Mi
+        - name: rrd-api
+          image: lscr.io/linuxserver/smokeping:2.9.0-r0-ls186
+          command: ["perl", "/srv/server.pl"]
+          ports:
+            - containerPort: 8081
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+            - name: rrd-api
+              mountPath: /srv
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 48Mi
       volumes:
+        - name: rrd-api
+          configMap:
+            name: smokeping-rrd-api
         - name: config
           persistentVolumeClaim:
             claimName: smokeping-config

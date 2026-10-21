@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smokeping-rrd-api
+  namespace: smokeping
+data:
+  server.pl: |
+    use strict;
+    use warnings;
+    use IO::Socket::INET;
+
+    $SIG{CHLD} = 'IGNORE';
+    my $srv = IO::Socket::INET->new(LocalPort => 8081, Listen => 5, ReuseAddr => 1) or die $!;
+
+    sub xport {
+        my ($hours) = @_;
+        my (@defs, $n);
+        for my $file (sort glob '/data/*/*.rrd') {
+            my ($group, $name) = $file =~ m{^/data/([^/]+)/([^/]+)\.rrd$} or next;
+            open my $info, '-|', 'rrdtool', 'info', $file or next;
+            my ($pings) = map { /^ds\[loss\]\.max = ([\d.e+]+)/ ? int($1) : () } <$info>;
+            close $info;
+            next unless $pings;
+            my $i = $n++;
+            push @defs,
+                "DEF:l$i=$file:loss:AVERAGE", "DEF:m$i=$file:median:AVERAGE",
+                "CDEF:p$i=l$i,$pings,/,100,*", "CDEF:r$i=m$i,1000,*",
+                "XPORT:p$i:$group/$name/loss", "XPORT:r$i:$group/$name/rtt";
+        }
+        return '{"data":[],"meta":{"legend":[]}}' unless $n;
+        open my $out, '-|', 'rrdtool', 'xport', '--json', '-s', "end-${hours}h", '-e', 'now', @defs or return '{}';
+        local $/;
+        return <$out>;
+    }
+
+    while (my $c = $srv->accept) {
+        next if fork;
+        my ($hours) = (<$c> // '') =~ /hours=(\d+)/;
+        $hours = 24 unless $hours;
+        $hours = 168 if $hours > 168;
+        my $body = xport($hours);
+        print $c "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: ", length $body, "\r\n\r\n", $body;
+        exit;
+    }
