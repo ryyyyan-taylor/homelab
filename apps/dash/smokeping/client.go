@@ -7,12 +7,16 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 )
 
-const routerGroup = "LAN"
+const (
+	routerGroup = "LAN"
+	fineHours   = 2
+)
 
 var nanToken = regexp.MustCompile(`-?\bnan\b`)
 
@@ -34,13 +38,16 @@ type Event struct {
 	PeakLoss  float64   `json:"peak_loss"`
 	PeakWorst float64   `json:"worst_round_loss"`
 	PeakRTT   float64   `json:"peak_rtt_ms"`
+	ResSec    int       `json:"resolution_sec"`
 }
 
 type Result struct {
-	Hours   int      `json:"hours"`
-	StepSec int      `json:"step_sec"`
-	Targets []string `json:"targets"`
-	Events  []Event  `json:"events"`
+	Hours     int      `json:"hours"`
+	StepSec   int      `json:"step_sec"`
+	FineSec   int      `json:"fine_sec,omitempty"`
+	FineHours int      `json:"fine_hours,omitempty"`
+	Targets   []string `json:"targets"`
+	Events    []Event  `json:"events"`
 }
 
 type xport struct {
@@ -57,7 +64,7 @@ type series struct {
 	loss, worst, rtt int
 }
 
-func (c *Client) Outages(hours int, minLoss float64) (*Result, error) {
+func (c *Client) fetch(hours int) (*xport, error) {
 	resp, err := c.http.Get(fmt.Sprintf("%s/?hours=%d", c.base, hours))
 	if err != nil {
 		return nil, err
@@ -75,16 +82,44 @@ func (c *Client) Outages(hours int, minLoss float64) (*Result, error) {
 	if err := json.Unmarshal(nanToken.ReplaceAll(body, []byte("null")), &x); err != nil {
 		return nil, fmt.Errorf("decode rrd-api response: %w", err)
 	}
+	return &x, nil
+}
 
-	result := &Result{Hours: hours, StepSec: int(x.Meta.Step), Targets: []string{}, Events: []Event{}}
-	targets := parseLegend(x.Meta.Legend)
+func (c *Client) Outages(hours int, minLoss float64) (*Result, error) {
+	coarse, err := c.fetch(hours)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Result{Hours: hours, StepSec: int(coarse.Meta.Step), Targets: []string{}, Events: []Event{}}
+	targets := parseLegend(coarse.Meta.Legend)
 	for _, t := range targets {
 		result.Targets = append(result.Targets, t.group+"/"+t.name)
 	}
 
+	var fine *xport
+	if hours > fineHours {
+		if f, err := c.fetch(fineHours); err == nil && f.Meta.Step < coarse.Meta.Step {
+			fine = f
+		}
+	}
+
+	var coarseUntil, fineAfter int64
+	if fine != nil {
+		step := coarse.Meta.Step
+		k := (fine.Meta.Start - coarse.Meta.Start + step - 1) / step
+		coarseUntil = coarse.Meta.Start + max(k, 1)*step
+		fineAfter = coarseUntil
+		result.FineSec = int(fine.Meta.Step)
+		result.FineHours = fineHours
+	}
+
 	var perTarget []Event
 	for _, t := range targets {
-		perTarget = append(perTarget, targetEvents(x, t, minLoss)...)
+		perTarget = append(perTarget, targetEvents(*coarse, t, minLoss, 0, coarseUntil)...)
+		if fine != nil {
+			perTarget = append(perTarget, targetEvents(*fine, t, minLoss, fineAfter, 0)...)
+		}
 	}
 	result.Events = mergeEvents(perTarget)
 	return result, nil
@@ -123,14 +158,18 @@ func parseLegend(legend []string) []series {
 	return out
 }
 
-func targetEvents(x xport, t series, minLoss float64) []Event {
+func targetEvents(x xport, t series, minLoss float64, after, until int64) []Event {
 	var events []Event
 	var cur *Event
 	gap := 0
 	step := time.Duration(x.Meta.Step) * time.Second
 
 	for i, row := range x.Data {
-		at := time.Unix(x.Meta.Start+int64(i+1)*x.Meta.Step, 0).UTC()
+		end := x.Meta.Start + int64(i+1)*x.Meta.Step
+		if end <= after || (until > 0 && end > until) {
+			continue
+		}
+		at := time.Unix(end, 0).UTC()
 		loss := row[t.loss]
 		if loss == nil {
 			continue
@@ -145,7 +184,7 @@ func targetEvents(x xport, t series, minLoss float64) []Event {
 		}
 		gap = 0
 		if cur == nil {
-			cur = &Event{Start: at.Add(-step), Targets: []string{t.group + "/" + t.name}}
+			cur = &Event{Start: at.Add(-step), Targets: []string{t.group + "/" + t.name}, ResSec: int(x.Meta.Step)}
 		}
 		cur.End = at
 		cur.PeakLoss = math.Max(cur.PeakLoss, *loss)
@@ -171,7 +210,12 @@ func mergeEvents(events []Event) []Event {
 			if e.End.After(m.End) {
 				m.End = e.End
 			}
-			m.Targets = append(m.Targets, e.Targets...)
+			for _, t := range e.Targets {
+				if !slices.Contains(m.Targets, t) {
+					m.Targets = append(m.Targets, t)
+				}
+			}
+			m.ResSec = max(m.ResSec, e.ResSec)
 			m.PeakLoss = math.Max(m.PeakLoss, e.PeakLoss)
 			m.PeakWorst = math.Max(m.PeakWorst, e.PeakWorst)
 			m.PeakRTT = math.Max(m.PeakRTT, e.PeakRTT)

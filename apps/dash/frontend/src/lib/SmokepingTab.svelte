@@ -45,8 +45,6 @@
   <label>
     Range
     <select bind:value={hours} onchange={load}>
-      <option value={1}>1 hour</option>
-      <option value={2}>2 hours</option>
       <option value={6}>6 hours</option>
       <option value={24}>24 hours</option>
       <option value={72}>3 days</option>
@@ -55,7 +53,7 @@
   </label>
   <button onclick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
   {#if data}
-    <span class="muted">{data.targets.join(', ')} · {data.step_sec}s probe step</span>
+    <span class="muted">{data.targets.join(', ')} · {data.fine_sec ? `last ${data.fine_hours}h at ${data.fine_sec}s, older at ${data.step_sec}s` : `${data.step_sec}s buckets`}</span>
   {/if}
 </div>
 
@@ -77,7 +75,7 @@
           <tr>
             <td class="mono">{fmtTime(e.start)}</td>
             <td class="mono">{fmtTime(e.end)}</td>
-            <td class="mono">{fmtDuration(e.start, e.end)}</td>
+            <td class="mono">{fmtDuration(e.start, e.end)}{#if e.resolution_sec >= 60} <span class="muted" title="Event comes from {e.resolution_sec}s buckets; start and end are approximate">±{e.resolution_sec / 60}m</span>{/if}</td>
             <td><span class="badge {badge[e.severity]}">{e.severity}</span></td>
             <td class="mono">{e.peak_loss.toFixed(1)}%</td>
             <td class="mono">{e.worst_round_loss.toFixed(0)}%</td>
