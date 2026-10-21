@@ -392,6 +392,8 @@ kubectl exec -n ntfy deploy/ntfy -- ntfy access <username> homelab-alerts read-w
 | URL | `https://smokeping.lab.ryantaylor.tech` |
 | Auth | None — LAN-only. Authentik is currently scaled to 0 cluster-wide (internal-only network, not gatekeeping anything; see `authentik/application.yaml`), so this doesn't reference `authentik-forwardauth` like the admin UIs nominally do |
 | Storage | 256Mi PVC at `/config` (config files), 1Gi PVC at `/data` (RRD + graphs) |
+| Sidecar | `rrd-api` container (same image, perl server on `:8081`, `/data` mounted read-only, exposed on the `smokeping` Service as `rrd-api`) — `GET /?hours=N` returns `rrdtool xport --json` for every `/data/<group>/<target>.rrd` with loss converted to % and RTT to ms; consumed by homelab-dash. Script lives in the `smokeping-rrd-api` ConfigMap (`smokeping/sidecar.yaml`) |
+| RRD gotcha | Smokeping refuses to start if an existing RRD has a different `step` or `pings` than the config — delete the RRDs (or back them up first) when changing either. The `loss` DS is packets lost per round (max = `pings`), not a percentage |
 | Targets | Router/gateway `10.0.1.1`, Cloudflare `1.1.1.1`, Google `8.8.8.8` — via `smokeping-config` ConfigMap, subPath-mounted over `/config/Targets` and `/config/Probes` |
 | Probe config | FPing probe, `step = 10`s / `pings = 10` at `hostinterval = 0.5` (2 pings/sec/target, ~5s per round) instead of the 300s default — built to catch short (~10s) frequent drops that coarser periodic health checks miss |
 | Purpose | Why this exists alongside Uptime Kuma: Uptime Kuma polls per-minute at best, too coarse for frequent sub-15s drops (e.g. Discord call dropouts). Smokeping's continuous fine-grained fping + per-target breakdown (LAN gateway vs. external) localizes whether a drop is local-network or upstream/ISP. |
@@ -546,6 +548,7 @@ Proxmox. Drive itself was left with its XFS partition intact, not wiped.
 | ArgoCD apps | `dash-config` (wave 18) — SOPS secrets; `dash` (wave 19) — Deployment + Service + IngressRoute |
 | **Backend routes** | `GET /api/proxmox` — Proxmox node/VM summary |
 | | `GET /api/k8s` — Kubernetes nodes + workload summary |
+| | `GET /api/smokeping?hours=24&min_loss=2` — grouped loss events from the smokeping `rrd-api` sidecar |
 | | `GET /api/semaphore` — Semaphore task templates with last-run status |
 | | `POST /api/semaphore/run/{templateID}` — trigger a Semaphore task, returns `{"task_id": N}` |
 | | `GET /api/semaphore/tasks/{taskID}` — poll task status |
@@ -554,12 +557,14 @@ Proxmox. Drive itself was left with its XFS partition intact, not wiped.
 | | `GET /api/shell/vncproxy` — calls Proxmox vncproxy, returns `{ticket, port}` |
 | | `GET /api/shell/vnc` (WebSocket) — transparent proxy to Proxmox vncwebsocket; `binary` subprotocol |
 | **Env vars** | `PROXMOX_URL` (default `https://10.0.1.135:8006`), `PROXMOX_TOKEN` (from `dash-proxmox` secret) |
+| | `SMOKEPING_URL` (default `http://smokeping.smokeping.svc.cluster.local:8081`) |
 | | `SEMAPHORE_URL` (default `http://semaphore.semaphore.svc.cluster.local:3000`), `SEMAPHORE_TOKEN` (from `dash-semaphore` secret), `SEMAPHORE_PROJECT_ID` (default `1`) |
 | | `SHELL_SSH_KEY` (from `dash-ssh` secret, optional) — SSH private key for terminal connections |
 | **Secrets** | `dash/dash-proxmox` — key `token` (Proxmox API token); SOPS: `dash-config/proxmox-secret.sops.yaml` |
 | | `dash/dash-semaphore` — key `token` (Semaphore Bearer token); SOPS: `dash-config/semaphore-secret.sops.yaml` |
 | | `dash/dash-ssh` — key `private_key` (SSH private key PEM); not in repo — `kubectl create secret generic dash-ssh -n dash --from-file=private_key=$HOME/.ssh/id_ed25519`; `optional: true` so pod starts without it |
-| **Tabs** | Proxmox (nodes + VMs), Kubernetes (nodes + workloads), Semaphore (template cards with Run buttons + live log), Shell (SSH terminal + VNC console) |
+| **Tabs** | Proxmox (nodes + VMs), Kubernetes (nodes + workloads), Semaphore (template cards with Run buttons + live log), Network (smokeping loss events), Shell (SSH terminal + VNC console) |
+| **Network tab** | Table of loss events (start/end/duration, severity, peak loss %, peak RTT, upstream-vs-LAN scope) over 6h/24h/3d/7d. Events are lossy smokeping buckets (>= 2% loss) merged across targets; "LAN" if the router target is affected, otherwise "Upstream / ISP". Loads on tab open, on range change, and every 60 s. |
 | **Semaphore tab** | Template cards show last-run status badge + timestamp. Run button triggers task, polls every 2 s, streams output in collapsible log panel. |
 | **Shell tab** | Left sidebar: Proxmox host + LXC containers (SSH terminal) + QEMU VMs (VNC console), each with CPU/RAM bars. Stopped items grayed out. SSH sessions dial the host directly over the LAN; VNC proxied through Go backend via Proxmox vncwebsocket. |
 

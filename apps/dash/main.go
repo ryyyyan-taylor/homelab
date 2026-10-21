@@ -18,6 +18,7 @@ import (
 	"github.com/ryyyyan-taylor/homelab/apps/dash/k8s"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/proxmox"
 	"github.com/ryyyyan-taylor/homelab/apps/dash/semaphore"
+	"github.com/ryyyyan-taylor/homelab/apps/dash/smokeping"
 )
 
 //go:embed frontend/dist
@@ -45,7 +46,26 @@ func main() {
 		log.Printf("warning: SEMAPHORE_TOKEN not set — Semaphore tab will return errors")
 	}
 
+	spc := smokeping.NewClient(env("SMOKEPING_URL", "http://smokeping.smokeping.svc.cluster.local:8081"))
+
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /api/smokeping", func(w http.ResponseWriter, r *http.Request) {
+		hours, err := strconv.Atoi(r.URL.Query().Get("hours"))
+		if err != nil || hours < 1 || hours > 168 {
+			hours = 24
+		}
+		minLoss, err := strconv.ParseFloat(r.URL.Query().Get("min_loss"), 64)
+		if err != nil || minLoss < 0 {
+			minLoss = 2
+		}
+		data, err := spc.Outages(hours, minLoss)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		jsonResponse(w, data)
+	})
 
 	mux.HandleFunc("GET /api/proxmox", func(w http.ResponseWriter, r *http.Request) {
 		data, err := pc.GetDashboard()
