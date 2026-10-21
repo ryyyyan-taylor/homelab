@@ -105,9 +105,12 @@ func parseLegend(legend []string) []series {
 			index[key] = s
 			order = append(order, key)
 		}
-		if parts[2] == "loss" {
+		switch parts[2] {
+		case "loss":
 			s.loss = i
-		} else {
+		case "worst":
+			s.worst = i
+		case "rtt":
 			s.rtt = i
 		}
 	}
@@ -146,6 +149,9 @@ func targetEvents(x xport, t series, minLoss float64) []Event {
 		}
 		cur.End = at
 		cur.PeakLoss = math.Max(cur.PeakLoss, *loss)
+		if worst := row[t.worst]; worst != nil {
+			cur.PeakWorst = math.Max(cur.PeakWorst, *worst)
+		}
 		if rtt := row[t.rtt]; rtt != nil {
 			cur.PeakRTT = math.Max(cur.PeakRTT, *rtt)
 		}
