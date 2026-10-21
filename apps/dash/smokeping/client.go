@@ -128,8 +128,10 @@ func targetEvents(x xport, t series, minLoss float64) []Event {
 	for i, row := range x.Data {
 		at := time.Unix(x.Meta.Start+int64(i+1)*x.Meta.Step, 0).UTC()
 		loss := row[t.loss]
-		lossy := loss == nil || *loss >= minLoss
-		if !lossy {
+		if loss == nil {
+			continue
+		}
+		if *loss < minLoss {
 			gap++
 			if cur != nil && gap > 1 {
 				events = append(events, *cur)
@@ -142,11 +144,7 @@ func targetEvents(x xport, t series, minLoss float64) []Event {
 			cur = &Event{Start: at.Add(-step), Targets: []string{t.group + "/" + t.name}}
 		}
 		cur.End = at
-		if loss != nil {
-			cur.PeakLoss = math.Max(cur.PeakLoss, *loss)
-		} else {
-			cur.PeakLoss = 100
-		}
+		cur.PeakLoss = math.Max(cur.PeakLoss, *loss)
 		if rtt := row[t.rtt]; rtt != nil {
 			cur.PeakRTT = math.Max(cur.PeakRTT, *rtt)
 		}
