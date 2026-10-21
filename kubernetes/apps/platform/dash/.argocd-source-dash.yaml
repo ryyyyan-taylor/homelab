@@ -1,3 +1,3 @@
 kustomize:
   images:
-  - ghcr.io/ryyyyan-taylor/homelab-dash:latest@sha256:9c97ebc071f924b5790fbb970b8bb0d3492a042ab8cbc9e39f94c35295ed1963
+  - ghcr.io/ryyyyan-taylor/homelab-dash:latest@sha256:3488c1bc9254c2ba5af71ed855f7c641c6a15dad8fbf6df1473a8e09dd31a23a
