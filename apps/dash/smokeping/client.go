@@ -181,7 +181,7 @@ func mergeEvents(events []Event) []Event {
 	}
 	for i := range merged {
 		merged[i].Scope = scope(merged[i].Targets)
-		merged[i].Severity = severity(merged[i].PeakLoss)
+		merged[i].Severity = severity(merged[i].PeakWorst)
 	}
 	if merged == nil {
 		return []Event{}
@@ -198,11 +198,11 @@ func scope(targets []string) string {
 	return "upstream"
 }
 
-func severity(peakLoss float64) string {
+func severity(worstRound float64) string {
 	switch {
-	case peakLoss >= 50:
+	case worstRound >= 50:
 		return "outage"
-	case peakLoss >= 10:
+	case worstRound >= 20:
 		return "degraded"
 	default:
 		return "minor"
