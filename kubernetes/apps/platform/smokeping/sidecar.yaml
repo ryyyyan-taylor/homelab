@@ -23,9 +23,9 @@ data:
             next unless $pings;
             my $i = $n++;
             push @defs,
-                "DEF:l$i=$file:loss:AVERAGE", "DEF:m$i=$file:median:AVERAGE",
-                "CDEF:p$i=l$i,$pings,/,100,*", "CDEF:r$i=m$i,1000,*",
-                "XPORT:p$i:$group/$name/loss", "XPORT:r$i:$group/$name/rtt";
+                "DEF:l$i=$file:loss:AVERAGE", "DEF:x$i=$file:loss:MAX", "DEF:m$i=$file:median:AVERAGE",
+                "CDEF:p$i=l$i,$pings,/,100,*", "CDEF:w$i=x$i,$pings,/,100,*", "CDEF:r$i=m$i,1000,*",
+                "XPORT:p$i:$group/$name/loss", "XPORT:w$i:$group/$name/worst", "XPORT:r$i:$group/$name/rtt";
         }
         return '{"data":[],"meta":{"legend":[]}}' unless $n;
         open my $out, '-|', 'rrdtool', 'xport', '--json', '-m', '5000', '-s', "end-${hours}h", '-e', 'now', @defs or return '{}';

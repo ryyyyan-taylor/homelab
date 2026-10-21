@@ -67,7 +67,7 @@
     <table>
       <thead>
         <tr>
-          <th>Start</th><th>End</th><th>Duration</th><th>Severity</th><th>Peak loss</th><th>Peak RTT</th><th>Where</th><th>Targets</th>
+          <th>Start</th><th>End</th><th>Duration</th><th>Severity</th><th>Avg loss (peak)</th><th>Worst round</th><th>Peak RTT</th><th>Where</th><th>Targets</th>
         </tr>
       </thead>
       <tbody>
@@ -78,12 +78,13 @@
             <td class="mono">{fmtDuration(e.start, e.end)}</td>
             <td><span class="badge {badge[e.severity]}">{e.severity}</span></td>
             <td class="mono">{e.peak_loss.toFixed(1)}%</td>
+            <td class="mono">{e.worst_round_loss.toFixed(0)}%</td>
             <td class="mono">{e.peak_rtt_ms ? e.peak_rtt_ms.toFixed(0) + ' ms' : '—'}</td>
             <td>{scopeLabel[e.scope]}</td>
             <td class="muted">{e.targets.map(t => t.split('/')[1]).join(', ')}</td>
           </tr>
         {:else}
-          <tr><td colspan="8" class="empty">No loss events in the last {hours}h</td></tr>
+          <tr><td colspan="9" class="empty">No loss events in the last {hours}h</td></tr>
         {/each}
       </tbody>
     </table>

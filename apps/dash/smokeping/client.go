@@ -26,13 +26,14 @@ func NewClient(baseURL string) *Client {
 }
 
 type Event struct {
-	Start    time.Time `json:"start"`
-	End      time.Time `json:"end"`
-	Targets  []string  `json:"targets"`
-	Scope    string    `json:"scope"`
-	Severity string    `json:"severity"`
-	PeakLoss float64   `json:"peak_loss"`
-	PeakRTT  float64   `json:"peak_rtt_ms"`
+	Start     time.Time `json:"start"`
+	End       time.Time `json:"end"`
+	Targets   []string  `json:"targets"`
+	Scope     string    `json:"scope"`
+	Severity  string    `json:"severity"`
+	PeakLoss  float64   `json:"peak_loss"`
+	PeakWorst float64   `json:"worst_round_loss"`
+	PeakRTT   float64   `json:"peak_rtt_ms"`
 }
 
 type Result struct {
@@ -52,8 +53,8 @@ type xport struct {
 }
 
 type series struct {
-	group, name string
-	loss, rtt   int
+	group, name      string
+	loss, worst, rtt int
 }
 
 func (c *Client) Outages(hours int, minLoss float64) (*Result, error) {
@@ -100,7 +101,7 @@ func parseLegend(legend []string) []series {
 		key := parts[0] + "/" + parts[1]
 		s, ok := index[key]
 		if !ok {
-			s = &series{group: parts[0], name: parts[1], loss: -1, rtt: -1}
+			s = &series{group: parts[0], name: parts[1], loss: -1, worst: -1, rtt: -1}
 			index[key] = s
 			order = append(order, key)
 		}
@@ -112,7 +113,7 @@ func parseLegend(legend []string) []series {
 	}
 	out := make([]series, 0, len(order))
 	for _, k := range order {
-		if index[k].loss >= 0 && index[k].rtt >= 0 {
+		if s := index[k]; s.loss >= 0 && s.worst >= 0 && s.rtt >= 0 {
 			out = append(out, *index[k])
 		}
 	}
@@ -166,6 +167,7 @@ func mergeEvents(events []Event) []Event {
 			}
 			m.Targets = append(m.Targets, e.Targets...)
 			m.PeakLoss = math.Max(m.PeakLoss, e.PeakLoss)
+			m.PeakWorst = math.Max(m.PeakWorst, e.PeakWorst)
 			m.PeakRTT = math.Max(m.PeakRTT, e.PeakRTT)
 			continue
 		}
