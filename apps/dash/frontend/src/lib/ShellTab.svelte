@@ -168,7 +168,7 @@
         selectionBackground: 'rgba(59,130,246,0.25)',
       },
       fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
-      fontSize: 13,
+      fontSize: matchMedia('(max-width: 768px)').matches ? 12 : 13,
       lineHeight: 1.45,
       scrollback: 2000,
       cursorBlink: true,
@@ -491,4 +491,10 @@
   .badge.muted-badge { background: var(--surface2); color: var(--muted); }
 
   .muted { color: var(--muted); }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; height: auto; gap: 0.75rem; }
+    .sidebar { max-height: 30dvh; }
+    .term-col { height: 55dvh; min-height: 300px; }
+  }
 </style>

@@ -69,10 +69,10 @@
             {#each data.deployments as d}
               {@const healthy = d.ready_replicas === d.total_replicas}
               <tr>
-                <td class="mono muted">{d.namespace}</td>
-                <td>{d.name}</td>
-                <td class="mono">{d.ready_replicas}/{d.total_replicas}</td>
-                <td><span class="badge {healthy ? 'green' : 'red'}">{healthy ? 'Healthy' : 'Degraded'}</span></td>
+                <td class="c-ns mono muted">{d.namespace}</td>
+                <td class="c-name">{d.name}</td>
+                <td class="c-ready mono">{d.ready_replicas}/{d.total_replicas}</td>
+                <td class="c-status"><span class="badge {healthy ? 'green' : 'red'}">{healthy ? 'Healthy' : 'Degraded'}</span></td>
               </tr>
             {/each}
           </tbody>
@@ -189,4 +189,30 @@
   .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 500; }
   .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.red   { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: minmax(0, 1fr); height: auto; }
+    .node-list { overflow-y: visible; }
+    .main-col { min-height: auto; }
+    .table-wrap { overflow-y: visible; }
+
+    thead { display: none; }
+    table, tbody { display: block; }
+    tr {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      grid-template-areas: "name ready status" "ns ns ns";
+      gap: 0.15rem 0.75rem;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    tr:last-child { border-bottom: none; }
+    td { padding: 0; border: none; min-width: 0; }
+    tr:hover td { background: none; }
+    .c-name { grid-area: name; font-weight: 600; overflow-wrap: anywhere; }
+    .c-ready { grid-area: ready; }
+    .c-status { grid-area: status; }
+    .c-ns { grid-area: ns; font-size: 0.72rem; }
+  }
 </style>

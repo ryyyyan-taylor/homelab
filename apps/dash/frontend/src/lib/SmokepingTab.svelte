@@ -73,15 +73,15 @@
       <tbody>
         {#each [...data.events].reverse() as e}
           <tr>
-            <td class="mono">{fmtTime(e.start)}</td>
-            <td class="mono">{fmtTime(e.end)}</td>
-            <td class="mono">{fmtDuration(e.start, e.end)}{#if e.resolution_sec >= 60} <span class="muted" title="Event comes from {e.resolution_sec}s buckets; start and end are approximate">±{e.resolution_sec / 60}m</span>{/if}</td>
-            <td><span class="badge {badge[e.severity]}">{e.severity}</span></td>
-            <td class="mono">{e.peak_loss.toFixed(1)}%</td>
-            <td class="mono">{e.worst_round_loss.toFixed(0)}%</td>
-            <td class="mono">{e.peak_rtt_ms ? e.peak_rtt_ms.toFixed(0) + ' ms' : '—'}</td>
-            <td>{scopeLabel[e.scope]}</td>
-            <td class="muted">{e.targets.map(t => t.split('/')[1]).join(', ')}</td>
+            <td class="c-start mono" data-label="Start">{fmtTime(e.start)}</td>
+            <td class="c-end mono" data-label="End">{fmtTime(e.end)}</td>
+            <td class="c-dur mono">{fmtDuration(e.start, e.end)}{#if e.resolution_sec >= 60} <span class="muted" title="Event comes from {e.resolution_sec}s buckets; start and end are approximate">±{e.resolution_sec / 60}m</span>{/if}</td>
+            <td class="c-sev"><span class="badge {badge[e.severity]}">{e.severity}</span></td>
+            <td class="c-loss mono" data-label="Avg loss">{e.peak_loss.toFixed(1)}%</td>
+            <td class="c-worst mono" data-label="Worst">{e.worst_round_loss.toFixed(0)}%</td>
+            <td class="c-rtt mono" data-label="Peak RTT">{e.peak_rtt_ms ? e.peak_rtt_ms.toFixed(0) + ' ms' : '—'}</td>
+            <td class="c-scope" data-label="Where">{scopeLabel[e.scope]}</td>
+            <td class="c-targets muted" data-label="Targets">{e.targets.map(t => t.split('/')[1]).join(', ')}</td>
           </tr>
         {:else}
           <tr><td colspan="9" class="empty">No loss events in the last {hours}h</td></tr>
@@ -164,4 +164,47 @@
   .badge.red   { background: rgba(239,68,68,0.15); color: var(--red); }
   .badge.amber { background: rgba(245,158,11,0.15); color: var(--amber); }
   .badge.muted { background: rgba(100,116,139,0.15); color: var(--muted); }
+
+  @media (max-width: 768px) {
+    .toolbar { flex-wrap: wrap; gap: 0.5rem 0.75rem; }
+    .toolbar > .muted { flex-basis: 100%; }
+    select, button { font-size: 16px; padding: 0.4rem 0.7rem; }
+
+    .table-wrap { overflow-x: visible; }
+    thead { display: none; }
+    table, tbody { display: block; }
+    tr {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.6rem 0.5rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      align-items: start;
+    }
+    tr:last-child { border-bottom: none; }
+    td { padding: 0; border: none; min-width: 0; white-space: normal; }
+    tr:hover td { background: none; }
+    .c-sev   { grid-row: 1; grid-column: 1 / 4; }
+    .c-dur   { grid-row: 1; grid-column: 4 / 7; text-align: right; }
+    .c-start { grid-row: 2; grid-column: 1 / 4; }
+    .c-end   { grid-row: 2; grid-column: 4 / 7; }
+    .c-loss  { grid-row: 3; grid-column: 1 / 3; }
+    .c-worst { grid-row: 3; grid-column: 3 / 5; }
+    .c-rtt   { grid-row: 3; grid-column: 5 / 7; }
+    .c-scope { grid-row: 4; grid-column: 1 / 4; }
+    .c-targets { grid-row: 4; grid-column: 4 / 7; text-align: right; }
+    td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.1rem;
+    }
+    .c-targets::before, .c-scope::before { white-space: nowrap; }
+    td.empty { grid-row: 1; grid-column: 1 / -1; }
+    td.empty::before { content: none; }
+  }
 </style>

@@ -157,4 +157,21 @@
   }
 
   main { flex: 1; padding: 1.5rem; }
+
+  @media (max-width: 768px) {
+    header { flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.6rem 0.75rem; }
+    .controls { gap: 0.6rem; }
+    .controls .muted { display: none; }
+    nav {
+      order: 3;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav { gap: 0; }
+    nav button { flex-shrink: 0; white-space: nowrap; padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+    select { font-size: 16px; }
+    main { padding: 0.75rem; }
+  }
 </style>

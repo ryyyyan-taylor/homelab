@@ -68,17 +68,17 @@
       <tbody>
         {#each data.vms as vm}
           <tr>
-            <td class="mono muted">{vm.vmid}</td>
-            <td>{vm.name}</td>
-            <td><span class="badge {vm.status === 'running' ? 'green' : 'muted-badge'}">{vm.status}</span></td>
-            <td class="util-cell">
+            <td class="c-id mono muted">{vm.vmid}</td>
+            <td class="c-name">{vm.name}</td>
+            <td class="c-status"><span class="badge {vm.status === 'running' ? 'green' : 'muted-badge'}">{vm.status}</span></td>
+            <td class="util-cell c-cpu" data-label="CPU">
               {#if vm.status === 'running'}
                 <UtilBar value={vm.cpu_percent} />
               {:else}
                 <span class="muted">—</span>
               {/if}
             </td>
-            <td class="util-cell">
+            <td class="util-cell c-ram" data-label="RAM">
               {#if vm.status === 'running'}
                 <UtilBar value={pct(vm.mem_used_bytes, vm.mem_total_bytes)} />
                 <span class="muted tiny">{fmtBytes(vm.mem_used_bytes)} / {fmtBytes(vm.mem_total_bytes)}</span>
@@ -86,7 +86,7 @@
                 <span class="muted">—</span>
               {/if}
             </td>
-            <td class="mono muted">{vm.status === 'running' ? fmtUptime(vm.uptime_seconds) : '—'}</td>
+            <td class="c-up mono muted" data-label="Up">{vm.status === 'running' ? fmtUptime(vm.uptime_seconds) : '—'}</td>
           </tr>
         {/each}
       </tbody>
@@ -105,17 +105,17 @@
       <tbody>
         {#each data.lxcs as lxc}
           <tr>
-            <td class="mono muted">{lxc.vmid}</td>
-            <td>{lxc.name}</td>
-            <td><span class="badge {lxc.status === 'running' ? 'green' : 'muted-badge'}">{lxc.status}</span></td>
-            <td class="util-cell">
+            <td class="c-id mono muted">{lxc.vmid}</td>
+            <td class="c-name">{lxc.name}</td>
+            <td class="c-status"><span class="badge {lxc.status === 'running' ? 'green' : 'muted-badge'}">{lxc.status}</span></td>
+            <td class="util-cell c-cpu" data-label="CPU">
               {#if lxc.status === 'running'}
                 <UtilBar value={lxc.cpu_percent} />
               {:else}
                 <span class="muted">—</span>
               {/if}
             </td>
-            <td class="util-cell">
+            <td class="util-cell c-ram" data-label="RAM">
               {#if lxc.status === 'running'}
                 <UtilBar value={pct(lxc.mem_used_bytes, lxc.mem_total_bytes)} />
                 <span class="muted tiny">{fmtBytes(lxc.mem_used_bytes)} / {fmtBytes(lxc.mem_total_bytes)}</span>
@@ -123,7 +123,7 @@
                 <span class="muted">—</span>
               {/if}
             </td>
-            <td class="mono muted">{lxc.status === 'running' ? fmtUptime(lxc.uptime_seconds) : '—'}</td>
+            <td class="c-up mono muted" data-label="Up">{lxc.status === 'running' ? fmtUptime(lxc.uptime_seconds) : '—'}</td>
           </tr>
         {/each}
       </tbody>
@@ -199,4 +199,45 @@
   }
   .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.muted-badge { background: var(--surface2); color: var(--muted); }
+
+  @media (max-width: 768px) {
+    .host-card { padding: 1rem; }
+    .gauges { grid-template-columns: 1fr; gap: 0.9rem; }
+
+    table, tbody { display: block; }
+    thead { display: none; }
+    tr {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: "id name status" "cpu cpu cpu" "ram ram ram" "up up up";
+      gap: 0.4rem 0.6rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    tr:last-child { border-bottom: none; }
+    td { padding: 0; border: none; min-width: 0; }
+    tr:hover td { background: none; }
+    .c-id { grid-area: id; }
+    .c-name { grid-area: name; font-weight: 600; overflow-wrap: anywhere; }
+    .c-status { grid-area: status; }
+    .c-cpu { grid-area: cpu; }
+    .c-ram { grid-area: ram; }
+    .c-up { grid-area: up; }
+    .util-cell { min-width: 0; }
+    .c-cpu, .c-ram, .c-up {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      align-items: center;
+    }
+    .c-cpu::before, .c-ram::before, .c-up::before {
+      content: attr(data-label);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .c-cpu > :global(*), .c-ram > :global(*), .c-up > :global(*) { grid-column: 2; }
+    .tiny { margin-top: 0.15rem; }
+    .c-up { font-size: 0.75rem; }
+  }
 </style>

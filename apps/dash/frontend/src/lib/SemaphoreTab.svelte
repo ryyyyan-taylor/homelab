@@ -349,4 +349,12 @@
   .badge.muted-badge { background: var(--surface2); color: var(--muted); }
 
   .muted { color: var(--muted); }
+
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; height: auto; gap: 0.75rem; }
+    .sidebar { max-height: 30dvh; overflow-y: auto; }
+    .sidebar-header { position: sticky; top: 0; }
+    .output-col { height: 50dvh; min-height: 280px; }
+    .run-btn { width: 2.5rem; height: 2.5rem; }
+  }
 </style>
