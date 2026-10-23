@@ -26,6 +26,11 @@ data:
     menu = Internet
     title = Upstream / ISP
 
+    ++ ISPHop
+    menu = ISP Hop
+    title = ISP First Responding Hop (96.216.99.221)
+    host = 96.216.99.221
+
     ++ Cloudflare
     menu = Cloudflare
     title = Cloudflare DNS (1.1.1.1)
